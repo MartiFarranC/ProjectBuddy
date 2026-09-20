@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ProjectBuddy · les teves idees</title>
+  <meta name="description" content="Gestor personal d'idees i projectes futurs" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💡</text></svg>" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ============== Configuració pendent (només si falta connectar Supabase) ============== -->
+  <div id="view-setup" class="login-wrap" hidden>
+    <div class="login-card">
+      <span class="big-emoji">💡</span>
+      <h1>ProjectBuddy</h1>
+      <p>El lloc on aparquen les teves idees fins que els toqui volar.</p>
+      <div id="config-warning" class="config-warning"></div>
+    </div>
+  </div>
+
+  <!-- ============== APP ============== -->
+  <div id="app" hidden>
+    <aside class="sidebar">
+      <div class="brand"><span class="mascot">💡</span> ProjectBuddy</div>
+      <ul class="nav-list">
+        <li><button class="nav-item" data-nav="capture"><span class="icon">✍️</span> Nova idea</button></li>
+        <li><button class="nav-item" data-nav="dashboard"><span class="icon">🗂️</span> Els meus projectes</button></li>
+        <li><button class="nav-item" data-nav="stats"><span class="icon">📊</span> Estadístiques</button></li>
+      </ul>
+      <div class="sidebar-footer">
+        <div class="user-chip">💡 fet per a tu</div>
+      </div>
+    </aside>
+
+    <main id="content">
+
+      <!-- ---- Captura ---- -->
+      <section id="view-capture" class="view">
+        <div class="capture-card">
+          <h2 class="capture-heading"><span>💭</span> <span id="capture-heading-text">Què tens al cap?</span></h2>
+          <p class="capture-sub">Escriu-ho o dicta-ho. Ja li donarem forma després.</p>
+
+          <textarea id="idea-textarea" placeholder="Una idea per a... un projecte que canviarà el món, o almenys el vespre d'avui."></textarea>
+
+          <div class="capture-toolbar">
+            <button type="button" id="mic-btn" class="mic-btn" title="Dictar en català">🎙️</button>
+            <span id="mic-hint" class="mic-hint">Prem el micro i parla en català</span>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">📁 Categoria <span style="font-weight:400">(opcional)</span></div>
+            <div class="chip-row" id="capture-categories"></div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">📍 On ets ara? <span style="font-weight:400">(opcional)</span></div>
+            <div class="chip-row" id="capture-locations"></div>
+          </div>
+
+          <div class="capture-actions">
+            <button type="button" class="btn btn-ghost" id="capture-go-dashboard">Veure els meus projectes →</button>
+            <button type="button" class="btn btn-primary" id="save-idea-btn">Desa la idea 🚀</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- Dashboard ---- -->
+      <section id="view-dashboard" class="view" hidden>
+        <div class="dash-header">
+          <h2 class="dash-title">Els teus projectes</h2>
+          <span class="dash-count" id="dash-count"></span>
+        </div>
+
+        <div class="dash-controls">
+          <div class="search-box">
+            <span class="icon">🔎</span>
+            <input type="text" id="search-input" placeholder="Cerca una idea..." />
+          </div>
+          <select id="sort-select">
+            <option value="recent">Més recents</option>
+            <option value="priority">Prioritat (ganes + necessitat − dificultat)</option>
+            <option value="difficulty">Dificultat</option>
+            <option value="pending">Pendents de valorar primer</option>
+          </select>
+        </div>
+
+        <div class="filter-chips" id="category-filter-chips"></div>
+
+        <div id="project-grid" class="project-grid"></div>
+        <div id="dashboard-empty" class="empty-state" hidden>
+          <span class="big-emoji">🌱</span>
+          Encara no tens cap idea desada.<br />Prem el botó + i deixa anar el primer pensament.
+        </div>
+      </section>
+
+      <!-- ---- Detall / qüestionari ---- -->
+      <section id="view-detail" class="view" hidden>
+        <button type="button" class="detail-back" id="detail-back-btn">← Tornar</button>
+
+        <div class="detail-grid">
+          <div>
+            <div class="panel">
+              <input type="text" id="detail-title-input" placeholder="Títol del projecte" />
+              <textarea id="detail-content-input" placeholder="La idea, explicada..."></textarea>
+              <div class="meta-row">
+                <span id="detail-created-at">—</span>
+                <span aria-hidden="true">·</span>
+                <span id="detail-location-display">—</span>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-title">📁 Categoria i ubicació</div>
+              <div class="field-group" style="margin-top:0">
+                <div class="field-label">Categoria</div>
+                <div class="chip-row" id="detail-categories"></div>
+              </div>
+              <div class="field-group">
+                <div class="field-label">Ubicació</div>
+                <div class="chip-row" id="detail-locations"></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <button class="btn btn-danger" id="delete-project-btn">🗑️ Eliminar projecte</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="panel">
+              <div class="panel-title">🎯 Com el veus?</div>
+
+              <div class="slider-block">
+                <div class="slider-head">
+                  <span class="q-label">Dificultat</span>
+                  <span class="slider-face" id="face-difficulty">😌</span>
+                </div>
+                <input type="range" min="1" max="5" value="3" id="slider-difficulty" />
+              </div>
+
+              <div class="slider-block">
+                <div class="slider-head">
+                  <span class="q-label">Necessitat</span>
+                  <span class="slider-face" id="face-necessity">🤷</span>
+                </div>
+                <input type="range" min="1" max="5" value="3" id="slider-necessity" />
+              </div>
+
+              <div class="slider-block">
+                <div class="slider-head">
+                  <span class="q-label">Ganes de fer-ho</span>
+                  <span class="slider-face" id="face-desire">😐</span>
+                </div>
+                <input type="range" min="1" max="5" value="3" id="slider-desire" />
+              </div>
+
+              <div class="slider-block" style="margin-bottom:0">
+                <div class="toggle-row">
+                  <span class="q-label">🔌 Necessita hardware o recursos externs?</span>
+                  <label class="switch">
+                    <input type="checkbox" id="needs-external-toggle" />
+                    <span class="switch-track"></span>
+                  </label>
+                </div>
+                <div id="external-detail-wrap" style="margin-top:12px" hidden>
+                  <textarea id="external-detail-input" placeholder="Quin hardware, API, pressupost o ajuda necessites?" style="min-height:70px"></textarea>
+                </div>
+              </div>
+
+              <div class="autosave-indicator" id="autosave-indicator">✓ Desat</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- Estadístiques ---- -->
+      <section id="view-stats" class="view" hidden>
+        <div class="dash-header">
+          <h2 class="dash-title">Estadístiques</h2>
+        </div>
+
+        <div class="hero-tiles" id="stats-hero"></div>
+
+        <div class="stats-grid">
+          <div class="stat-tile wide">
+            <h3>Idees creades per setmana</h3>
+            <p class="stat-hint">Quan tens més pics d'inspiració</p>
+            <canvas id="chart-timeline" height="90"></canvas>
+          </div>
+
+          <div class="stat-tile">
+            <h3>Projectes per categoria</h3>
+            <p class="stat-hint">On es concentren les teves idees</p>
+            <canvas id="chart-category" height="220"></canvas>
+          </div>
+
+          <div class="stat-tile">
+            <h3>Projectes per ubicació</h3>
+            <p class="stat-hint">On sols pensar les millors idees</p>
+            <canvas id="chart-location" height="220"></canvas>
+          </div>
+
+          <div class="stat-tile wide">
+            <h3>Matriu de prioritat</h3>
+            <p class="stat-hint">Necessitat vs. ganes · la mida és com de fàcil és (bombolla gran = fàcil)</p>
+            <canvas id="chart-priority" height="260"></canvas>
+          </div>
+        </div>
+
+        <div class="empty-state" id="stats-empty" hidden>
+          <span class="big-emoji">📊</span>
+          Encara no hi ha prou dades. Crea algunes idees i respon el qüestionari!
+        </div>
+      </section>
+
+    </main>
+
+    <nav class="bottom-nav">
+      <button data-nav="capture" class="active"><span class="icon">✍️</span>Nova</button>
+      <button data-nav="dashboard"><span class="icon">🗂️</span>Projectes</button>
+      <button data-nav="stats"><span class="icon">📊</span>Stats</button>
+    </nav>
+
+    <button class="fab" id="fab-new-idea" title="Nova idea">+</button>
+  </div>
+
+  <div id="toast-stack"></div>
+
+  <!-- ============== Llibreries ============== -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+
+  <!-- ============== App ============== -->
+  <script src="js/config.js"></script>
+  <script src="js/supabaseClient.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/speech.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
