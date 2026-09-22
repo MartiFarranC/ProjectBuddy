@@ -34,7 +34,20 @@
 
       <!-- ---- Captura ---- -->
       <section id="view-capture" class="view">
-        <div class="capture-card">
+
+        <!-- Mode ràpid (mòbil): només la icona flotant fins que la mantens premuda -->
+        <div class="quick-capture" id="quick-capture" hidden>
+          <button type="button" id="quick-record-btn" class="quick-record-btn" aria-label="Mantén premut per gravar una idea nova">
+            <span class="quick-record-pulse" aria-hidden="true"></span>
+            <canvas id="quick-wave-canvas" class="quick-wave-canvas" width="220" height="220" aria-hidden="true"></canvas>
+            <span class="quick-record-icon" aria-hidden="true">💡</span>
+          </button>
+          <p class="quick-record-hint" id="quick-record-hint">Mantén premut per gravar una idea</p>
+          <button type="button" class="quick-manual-link" id="quick-manual-link">o escriu-la a mà</button>
+        </div>
+
+        <div class="capture-card" id="capture-card">
+          <button type="button" class="detail-back" id="capture-back-to-quick" hidden>← Mode ràpid</button>
           <h2 class="capture-heading">Nova idea</h2>
           <p class="capture-sub">Escriu-la o dicta-la. Li donaràs forma més tard.</p>
 
