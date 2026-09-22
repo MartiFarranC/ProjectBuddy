@@ -13,6 +13,17 @@
     micSession: null,
     micRecording: false,
     autosaveTimer: null,
+    manualFormOpen: false,
+    quickArmTimer: null,
+    quickPointerId: undefined,
+    quickRecording: false,
+    quickPendingSave: false,
+    quickStream: null,
+    quickAudioCtx: null,
+    quickWaveRAF: null,
+    quickSpeechSession: null,
+    quickTranscript: "",
+    quickLocationPromise: null,
   };
 
   const $ = (sel, root) => (root || document).querySelector(sel);
@@ -100,8 +111,20 @@
     $$(".bottom-nav button").forEach((b) => b.classList.toggle("active", b.dataset.nav === name));
     window.scrollTo({ top: 0, behavior: "smooth" });
 
+    if (name === "capture") {
+      state.manualFormOpen = false;
+      updateCaptureLayout();
+    }
     if (name === "dashboard") renderDashboard();
     if (name === "stats") renderStats();
+  }
+
+  function updateCaptureLayout() {
+    const quickAvailable = isMobile() && window.PB_SPEECH.supported;
+    const showQuick = quickAvailable && !state.manualFormOpen;
+    $("#quick-capture").hidden = !showQuick;
+    $("#capture-card").hidden = showQuick;
+    $("#capture-back-to-quick").hidden = !(quickAvailable && state.manualFormOpen);
   }
 
   function wireNav() {
@@ -232,6 +255,278 @@
     }
 
     $("#save-idea-btn").addEventListener("click", saveNewIdea);
+
+    wireQuickCapture();
+  }
+
+  /* ---------------------------------------------------------------------
+   * Captura ràpida (mòbil): icona flotant → mantenir premut per gravar
+   * ------------------------------------------------------------------- */
+
+  const QUICK_ARM_DELAY_MS = 180; // temps que cal mantenir premut abans de començar a gravar de debò
+
+  function wireQuickCapture() {
+    const btn = $("#quick-record-btn");
+    if (!btn || !window.PB_SPEECH.supported) return;
+
+    btn.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    btn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (state.quickArmTimer || state.quickRecording) return;
+      state.quickPointerId = e.pointerId;
+      state.quickArmTimer = setTimeout(() => {
+        state.quickArmTimer = null;
+        startQuickRecording();
+      }, QUICK_ARM_DELAY_MS);
+    });
+
+    ["pointerup", "pointercancel", "pointerleave"].forEach((evt) => {
+      btn.addEventListener(evt, (e) => {
+        if (state.quickPointerId !== undefined && e.pointerId !== state.quickPointerId) return;
+        state.quickPointerId = undefined;
+
+        if (state.quickArmTimer) {
+          clearTimeout(state.quickArmTimer);
+          state.quickArmTimer = null;
+          flashQuickHint();
+          return;
+        }
+        if (state.quickRecording) {
+          stopQuickRecording(evt !== "pointercancel");
+        }
+      });
+    });
+
+    $("#quick-manual-link").addEventListener("click", () => {
+      state.manualFormOpen = true;
+      updateCaptureLayout();
+    });
+
+    $("#capture-back-to-quick").addEventListener("click", () => {
+      state.manualFormOpen = false;
+      updateCaptureLayout();
+    });
+
+    window.addEventListener("resize", debounce(updateCaptureLayout, 150));
+  }
+
+  function flashQuickHint() {
+    const hint = $("#quick-record-hint");
+    hint.textContent = "Mantén premut per gravar";
+    hint.classList.remove("shake");
+    void hint.offsetWidth; // reinicia l'animació si ja s'havia mostrat
+    hint.classList.add("shake");
+  }
+
+  async function startQuickRecording() {
+    const btn = $("#quick-record-btn");
+    const hint = $("#quick-record-hint");
+
+    state.quickTranscript = "";
+    state.quickLocationPromise = lookupQuickLocation();
+
+    try {
+      state.quickStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      toast("Cal permís de micròfon per gravar");
+      return;
+    }
+
+    state.quickRecording = true;
+    btn.classList.add("recording");
+    hint.textContent = "T'escolto... deixa anar per desar";
+    startQuickWaveform(state.quickStream);
+
+    state.quickSpeechSession = window.PB_SPEECH.createSession({
+      onInterim: () => {},
+      onFinalChunk: (text) => {
+        state.quickTranscript = (state.quickTranscript + " " + text).trim();
+      },
+      onEnd: finishQuickSave,
+      onError: () => {},
+    });
+    state.quickSpeechSession.start();
+  }
+
+  function stopQuickRecording(shouldSave) {
+    const btn = $("#quick-record-btn");
+    const hint = $("#quick-record-hint");
+
+    state.quickRecording = false;
+    btn.classList.remove("recording");
+    stopQuickWaveform();
+
+    if (state.quickStream) {
+      state.quickStream.getTracks().forEach((t) => t.stop());
+      state.quickStream = null;
+    }
+
+    if (!shouldSave) {
+      state.quickPendingSave = false;
+      if (state.quickSpeechSession) state.quickSpeechSession.stop();
+      hint.textContent = "Mantén premut per gravar una idea";
+      return;
+    }
+
+    state.quickPendingSave = true;
+    btn.classList.add("saving");
+    hint.textContent = "Desant...";
+    if (state.quickSpeechSession) {
+      state.quickSpeechSession.stop();
+    } else {
+      finishQuickSave();
+    }
+  }
+
+  async function finishQuickSave() {
+    if (!state.quickPendingSave) return;
+    state.quickPendingSave = false;
+
+    const btn = $("#quick-record-btn");
+    const hint = $("#quick-record-hint");
+    btn.classList.remove("saving");
+
+    const content = state.quickTranscript.trim();
+    if (!content) {
+      hint.textContent = "No t'he sentit, torna-ho a provar";
+      setTimeout(() => {
+        hint.textContent = "Mantén premut per gravar una idea";
+      }, 2200);
+      return;
+    }
+
+    const locationName = await Promise.race([
+      state.quickLocationPromise || Promise.resolve(null),
+      new Promise((resolve) => setTimeout(() => resolve(null), 2500)),
+    ]);
+
+    try {
+      const created = await window.PB_DB.createProject({
+        title: quickIdeaTitle(locationName),
+        content,
+        category: null,
+        location: locationName,
+      });
+      state.projects.unshift(created);
+      toast("Idea desada");
+    } catch (err) {
+      console.error(err);
+      toast("No s'ha pogut desar la idea");
+    } finally {
+      hint.textContent = "Mantén premut per gravar una idea";
+    }
+  }
+
+  function quickIdeaTitle(locationName) {
+    const now = new Date();
+    const datePart = now.toLocaleDateString("ca-ES", { day: "numeric", month: "short" });
+    const timePart = now.toLocaleTimeString("ca-ES", { hour: "2-digit", minute: "2-digit" });
+    const when = `${datePart}, ${timePart}`;
+    return locationName ? `${locationName} · ${when}` : when;
+  }
+
+  function lookupQuickLocation() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            resolve(await reverseGeocode(pos.coords.latitude, pos.coords.longitude));
+          } catch {
+            resolve(null);
+          }
+        },
+        () => resolve(null),
+        { timeout: 6000, maximumAge: 300000 }
+      );
+    });
+  }
+
+  async function reverseGeocode(lat, lon) {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=14&accept-language=ca`;
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error("geocode failed");
+    const data = await res.json();
+    const a = data.address || {};
+    return (
+      a.suburb ||
+      a.neighbourhood ||
+      a.city_district ||
+      a.town ||
+      a.village ||
+      a.city ||
+      a.municipality ||
+      a.county ||
+      null
+    );
+  }
+
+  function startQuickWaveform(stream) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioCtx();
+    const source = audioCtx.createMediaStreamSource(stream);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    const canvas = $("#quick-wave-canvas");
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const size = canvas.clientWidth || 132;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    ctx.scale(dpr, dpr);
+
+    const waveColor =
+      getComputedStyle(document.documentElement).getPropertyValue("--critical").trim() || "#d03b3b";
+
+    function draw() {
+      state.quickWaveRAF = requestAnimationFrame(draw);
+      analyser.getByteTimeDomainData(dataArray);
+
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const v = (dataArray[i] - 128) / 128;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / bufferLength);
+      document.documentElement.style.setProperty("--mic-level", Math.min(1, rms * 5).toFixed(3));
+
+      ctx.clearRect(0, 0, size, size);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = waveColor;
+      ctx.beginPath();
+      const slice = size / bufferLength;
+      let x = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128;
+        const y = (v * size) / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += slice;
+      }
+      ctx.stroke();
+    }
+    draw();
+
+    state.quickAudioCtx = audioCtx;
+  }
+
+  function stopQuickWaveform() {
+    if (state.quickWaveRAF) cancelAnimationFrame(state.quickWaveRAF);
+    state.quickWaveRAF = null;
+    document.documentElement.style.setProperty("--mic-level", "0");
+
+    const canvas = $("#quick-wave-canvas");
+    if (canvas) canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+
+    if (state.quickAudioCtx) {
+      state.quickAudioCtx.close();
+      state.quickAudioCtx = null;
+    }
   }
 
   async function saveNewIdea() {
