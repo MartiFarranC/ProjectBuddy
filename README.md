@@ -1,4 +1,4 @@
-# ProjectBuddy 💡
+# ProjectBuddy
 
 El teu Notion personal per capturar i triar quins projectes val la pena fer.
 Pensat per publicar-se tal qual a **GitHub Pages** (és 100% HTML/CSS/JS estàtic,
@@ -10,15 +10,15 @@ sense servidor propi).
   Al mòbil, l'app obre directament la pantalla de captura; a l'ordinador, obre
   primer la llista de projectes.
 - **Qüestionari fix** per a cada projecte: Dificultat, Necessitat, Ganes de
-  fer-ho (1-5, amb emojis) i si depèn de hardware o recursos externs.
+  fer-ho (1-5) i si depèn de hardware o recursos externs.
 - **Data, hora i ubicació** de quan vas tenir la idea (la ubicació és un
   desplegable de xips: llocs predeterminats + els que tu afegeixis).
 - **Categories** personalitzables per organitzar els projectes.
 - **Estadístiques**: idees per setmana, per categoria, per ubicació, i una
   "matriu de prioritat" (necessitat vs. ganes, mida = com de fàcil) per ajudar-te
   a triar què fer primer.
-- Disseny fosc, arrodonit i una mica trapella, pensat per anar còmode amb TDAH:
-  poques decisions per pantalla, desat automàtic, molt de feedback visual.
+- Disseny fosc, editorial i minimal, pensat per anar còmode amb TDAH: poques
+  decisions per pantalla, desat automàtic, sense soroll visual innecessari.
 
 ## 1. Configura la base de dades (Supabase)
 
@@ -90,4 +90,4 @@ sql/schema.sql        Taules + seguretat (executa'l a Supabase)
   una, és tot a la secció `<!-- ---- Detall / qüestionari ---- -->` de
   `index.html` + `sql/schema.sql` per a una columna nova.
 - **Colors**: variables CSS a la capçalera de `css/style.css` (`--cat-1`...`--cat-8`
-  per a categories, `--accent-1/2` per als botons).
+  per a categories, `--accent` per als botons i elements interactius).

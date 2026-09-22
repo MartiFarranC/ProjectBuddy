@@ -13,9 +13,8 @@
   <!-- ============== Configuració pendent (només si falta connectar Supabase) ============== -->
   <div id="view-setup" class="login-wrap" hidden>
     <div class="login-card">
-      <span class="big-emoji">💡</span>
       <h1>ProjectBuddy</h1>
-      <p>El lloc on aparquen les teves idees fins que els toqui volar.</p>
+      <p>Gestor personal d'idees i projectes.</p>
       <div id="config-warning" class="config-warning"></div>
     </div>
   </div>
@@ -23,15 +22,12 @@
   <!-- ============== APP ============== -->
   <div id="app" hidden>
     <aside class="sidebar">
-      <div class="brand"><span class="mascot">💡</span> ProjectBuddy</div>
+      <div class="brand">ProjectBuddy</div>
       <ul class="nav-list">
-        <li><button class="nav-item" data-nav="capture"><span class="icon">✍️</span> Nova idea</button></li>
-        <li><button class="nav-item" data-nav="dashboard"><span class="icon">🗂️</span> Els meus projectes</button></li>
-        <li><button class="nav-item" data-nav="stats"><span class="icon">📊</span> Estadístiques</button></li>
+        <li><button class="nav-item" data-nav="capture">Nova idea</button></li>
+        <li><button class="nav-item" data-nav="dashboard">Projectes</button></li>
+        <li><button class="nav-item" data-nav="stats">Estadístiques</button></li>
       </ul>
-      <div class="sidebar-footer">
-        <div class="user-chip">💡 fet per a tu</div>
-      </div>
     </aside>
 
     <main id="content">
@@ -39,29 +35,35 @@
       <!-- ---- Captura ---- -->
       <section id="view-capture" class="view">
         <div class="capture-card">
-          <h2 class="capture-heading"><span>💭</span> <span id="capture-heading-text">Què tens al cap?</span></h2>
-          <p class="capture-sub">Escriu-ho o dicta-ho. Ja li donarem forma després.</p>
+          <h2 class="capture-heading">Nova idea</h2>
+          <p class="capture-sub">Escriu-la o dicta-la. Li donaràs forma més tard.</p>
 
-          <textarea id="idea-textarea" placeholder="Una idea per a... un projecte que canviarà el món, o almenys el vespre d'avui."></textarea>
+          <textarea id="idea-textarea" placeholder="De què va la idea?"></textarea>
 
           <div class="capture-toolbar">
-            <button type="button" id="mic-btn" class="mic-btn" title="Dictar en català">🎙️</button>
-            <span id="mic-hint" class="mic-hint">Prem el micro i parla en català</span>
+            <button type="button" id="mic-btn" class="mic-btn" title="Dictar en català" aria-label="Dictar en català">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <rect x="6" y="1.5" width="4" height="8" rx="2" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M3.5 8a4.5 4.5 0 0 0 9 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                <path d="M8 12.5v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <span id="mic-hint" class="mic-hint">Dicta en català</span>
           </div>
 
           <div class="field-group">
-            <div class="field-label">📁 Categoria <span style="font-weight:400">(opcional)</span></div>
+            <div class="field-label">Categoria (opcional)</div>
             <div class="chip-row" id="capture-categories"></div>
           </div>
 
           <div class="field-group">
-            <div class="field-label">📍 On ets ara? <span style="font-weight:400">(opcional)</span></div>
+            <div class="field-label">On ets ara (opcional)</div>
             <div class="chip-row" id="capture-locations"></div>
           </div>
 
           <div class="capture-actions">
-            <button type="button" class="btn btn-ghost" id="capture-go-dashboard">Veure els meus projectes →</button>
-            <button type="button" class="btn btn-primary" id="save-idea-btn">Desa la idea 🚀</button>
+            <button type="button" class="btn btn-ghost" id="capture-go-dashboard">Veure projectes</button>
+            <button type="button" class="btn btn-primary" id="save-idea-btn">Desa</button>
           </div>
         </div>
       </section>
@@ -69,14 +71,13 @@
       <!-- ---- Dashboard ---- -->
       <section id="view-dashboard" class="view" hidden>
         <div class="dash-header">
-          <h2 class="dash-title">Els teus projectes</h2>
+          <h2 class="dash-title">Projectes</h2>
           <span class="dash-count" id="dash-count"></span>
         </div>
 
         <div class="dash-controls">
           <div class="search-box">
-            <span class="icon">🔎</span>
-            <input type="text" id="search-input" placeholder="Cerca una idea..." />
+            <input type="text" id="search-input" placeholder="Cerca..." />
           </div>
           <select id="sort-select">
             <option value="recent">Més recents</option>
@@ -90,8 +91,7 @@
 
         <div id="project-grid" class="project-grid"></div>
         <div id="dashboard-empty" class="empty-state" hidden>
-          <span class="big-emoji">🌱</span>
-          Encara no tens cap idea desada.<br />Prem el botó + i deixa anar el primer pensament.
+          Encara no tens cap idea desada.
         </div>
       </section>
 
@@ -112,7 +112,7 @@
             </div>
 
             <div class="panel">
-              <div class="panel-title">📁 Categoria i ubicació</div>
+              <div class="panel-title">Categoria i ubicació</div>
               <div class="field-group" style="margin-top:0">
                 <div class="field-label">Categoria</div>
                 <div class="chip-row" id="detail-categories"></div>
@@ -124,18 +124,18 @@
             </div>
 
             <div class="panel">
-              <button class="btn btn-danger" id="delete-project-btn">🗑️ Eliminar projecte</button>
+              <button class="btn btn-danger" id="delete-project-btn">Eliminar projecte</button>
             </div>
           </div>
 
           <div>
             <div class="panel">
-              <div class="panel-title">🎯 Com el veus?</div>
+              <div class="panel-title">Valoració</div>
 
               <div class="slider-block">
                 <div class="slider-head">
                   <span class="q-label">Dificultat</span>
-                  <span class="slider-face" id="face-difficulty">😌</span>
+                  <span class="slider-value" id="value-difficulty">3</span>
                 </div>
                 <input type="range" min="1" max="5" value="3" id="slider-difficulty" />
               </div>
@@ -143,7 +143,7 @@
               <div class="slider-block">
                 <div class="slider-head">
                   <span class="q-label">Necessitat</span>
-                  <span class="slider-face" id="face-necessity">🤷</span>
+                  <span class="slider-value" id="value-necessity">3</span>
                 </div>
                 <input type="range" min="1" max="5" value="3" id="slider-necessity" />
               </div>
@@ -151,14 +151,14 @@
               <div class="slider-block">
                 <div class="slider-head">
                   <span class="q-label">Ganes de fer-ho</span>
-                  <span class="slider-face" id="face-desire">😐</span>
+                  <span class="slider-value" id="value-desire">3</span>
                 </div>
                 <input type="range" min="1" max="5" value="3" id="slider-desire" />
               </div>
 
               <div class="slider-block" style="margin-bottom:0">
                 <div class="toggle-row">
-                  <span class="q-label">🔌 Necessita hardware o recursos externs?</span>
+                  <span class="q-label">Necessita hardware o recursos externs?</span>
                   <label class="switch">
                     <input type="checkbox" id="needs-external-toggle" />
                     <span class="switch-track"></span>
@@ -169,7 +169,7 @@
                 </div>
               </div>
 
-              <div class="autosave-indicator" id="autosave-indicator">✓ Desat</div>
+              <div class="autosave-indicator" id="autosave-indicator">Desat</div>
             </div>
           </div>
         </div>
@@ -210,17 +210,16 @@
         </div>
 
         <div class="empty-state" id="stats-empty" hidden>
-          <span class="big-emoji">📊</span>
-          Encara no hi ha prou dades. Crea algunes idees i respon el qüestionari!
+          Encara no hi ha prou dades. Crea algunes idees i respon el qüestionari.
         </div>
       </section>
 
     </main>
 
     <nav class="bottom-nav">
-      <button data-nav="capture" class="active"><span class="icon">✍️</span>Nova</button>
-      <button data-nav="dashboard"><span class="icon">🗂️</span>Projectes</button>
-      <button data-nav="stats"><span class="icon">📊</span>Stats</button>
+      <button data-nav="capture" class="active">Nova</button>
+      <button data-nav="dashboard">Projectes</button>
+      <button data-nav="stats">Stats</button>
     </nav>
 
     <button class="fab" id="fab-new-idea" title="Nova idea">+</button>
