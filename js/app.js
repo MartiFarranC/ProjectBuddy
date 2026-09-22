@@ -77,30 +77,16 @@
     };
   }
 
-  function toast(msg, emoji) {
+  function toast(msg) {
     const stack = $("#toast-stack");
     const el = document.createElement("div");
     el.className = "toast";
-    el.innerHTML = `<span>${emoji || "✨"}</span><span>${msg}</span>`;
+    el.textContent = msg;
     stack.appendChild(el);
     setTimeout(() => {
       el.classList.add("leaving");
-      setTimeout(() => el.remove(), 250);
-    }, 2600);
-  }
-
-  function confettiBurst() {
-    const colors = ["#8b5cf6", "#22d3ee", "#d95926", "#199e70", "#d55181"];
-    for (let i = 0; i < 26; i++) {
-      const piece = document.createElement("div");
-      piece.className = "confetti-piece";
-      piece.style.left = Math.random() * 100 + "vw";
-      piece.style.background = colors[i % colors.length];
-      piece.style.animationDelay = Math.random() * 0.3 + "s";
-      piece.style.width = piece.style.height = 6 + Math.random() * 6 + "px";
-      document.body.appendChild(piece);
-      setTimeout(() => piece.remove(), 1800);
-    }
+      setTimeout(() => el.remove(), 200);
+    }, 2400);
   }
 
   /* ---------------------------------------------------------------------
@@ -219,29 +205,29 @@
         const textarea = $("#idea-textarea");
         state.micSession = window.PB_SPEECH.createSession({
           onInterim: (text) => {
-            hint.textContent = "🎧 " + text;
+            hint.textContent = text;
             hint.classList.add("live");
           },
           onFinalChunk: (text) => {
             textarea.value = (textarea.value + " " + text).trim();
-            hint.textContent = "Escoltant... torna a parlar o prem el micro per aturar";
+            hint.textContent = "Escoltant, torna a parlar quan vulguis";
           },
           onEnd: () => {
             state.micRecording = false;
             micBtn.classList.remove("recording");
             hint.classList.remove("live");
-            hint.textContent = "Prem el micro i parla en català";
+            hint.textContent = "Dicta en català";
           },
           onError: (err) => {
             state.micRecording = false;
             micBtn.classList.remove("recording");
-            hint.textContent = "No he pogut sentir-te bé 😅 torna-ho a provar";
+            hint.textContent = "No t'he sentit bé, torna-ho a provar";
           },
         });
         state.micSession.start();
         state.micRecording = true;
         micBtn.classList.add("recording");
-        hint.textContent = "Escoltant en català...";
+        hint.textContent = "Escoltant...";
       });
     }
 
@@ -251,7 +237,7 @@
   async function saveNewIdea() {
     const content = $("#idea-textarea").value.trim();
     if (!content) {
-      toast("Escriu alguna cosa primer, encara que sigui un titular! 📝", "🤔");
+      toast("Escriu alguna cosa primer");
       return;
     }
     const btn = $("#save-idea-btn");
@@ -265,12 +251,11 @@
         location: state.captureLocation,
       });
       state.projects = await window.PB_DB.listProjects();
-      confettiBurst();
-      toast("Idea desada! Ja és teva per sempre.", "🎉");
+      toast("Idea desada");
       resetCaptureForm();
     } catch (err) {
       console.error(err);
-      toast("Alguna cosa ha fallat desant la idea 😬", "⚠️");
+      toast("No s'ha pogut desar la idea");
     } finally {
       btn.disabled = false;
     }
@@ -336,23 +321,19 @@
       const slot = window.PB_DB.categorySlot(state.categories, p.category);
       card.style.setProperty("--card-color", catColorVar(slot));
 
-      const scoreRow = p.questionnaire_done
-        ? `<div class="score-row">
-             <span class="score-pill" title="Dificultat">💪 ${p.difficulty}</span>
-             <span class="score-pill" title="Necessitat">🎯 ${p.necessity}</span>
-             <span class="score-pill" title="Ganes">🤩 ${p.desire}</span>
-           </div>`
-        : `<span class="badge badge-pending">❓ Falta valorar</span>`;
+      const scores = p.questionnaire_done
+        ? `<span>D${p.difficulty} · N${p.necessity} · G${p.desire}</span>`
+        : `<span class="tag-pending">Per valorar</span>`;
 
       card.innerHTML = `
         <div class="card-top">
-          ${p.category ? `<span class="badge"><span class="badge-dot"></span>${p.category}</span>` : "<span></span>"}
+          ${p.category ? `<span class="tag"><span class="tag-dot"></span>${p.category}</span>` : "<span></span>"}
         </div>
         <h3 class="card-title">${escapeHtml(p.title)}</h3>
         <p class="card-excerpt">${escapeHtml(excerpt(p.content, 140))}</p>
         <div class="card-meta">
           <span>${formatRelative(p.created_at)}${p.location ? " · " + escapeHtml(p.location) : ""}</span>
-          ${scoreRow}
+          ${scores}
         </div>
       `;
       card.addEventListener("click", () => openDetail(p.id));
@@ -370,12 +351,6 @@
    * Detall + qüestionari
    * ------------------------------------------------------------------- */
 
-  const FACES = {
-    difficulty: ["😌", "🙂", "😐", "😰", "🥵"],
-    necessity: ["🤷", "🙂", "🎯", "❗", "🔥"],
-    desire: ["😴", "😐", "🙂", "😃", "🤩"],
-  };
-
   function openDetail(id) {
     state.currentProjectId = id;
     const p = state.projects.find((x) => x.id === id);
@@ -383,15 +358,15 @@
 
     $("#detail-title-input").value = p.title || "";
     $("#detail-content-input").value = p.content || "";
-    $("#detail-created-at").textContent = "🕐 " + formatDateTime(p.created_at);
-    $("#detail-location-display").textContent = p.location ? "📍 " + p.location : "📍 Sense ubicació";
+    $("#detail-created-at").textContent = formatDateTime(p.created_at);
+    $("#detail-location-display").textContent = p.location || "Sense ubicació";
 
     $("#slider-difficulty").value = p.difficulty || 3;
     $("#slider-necessity").value = p.necessity || 3;
     $("#slider-desire").value = p.desire || 3;
-    updateFace("difficulty");
-    updateFace("necessity");
-    updateFace("desire");
+    updateSliderValue("difficulty");
+    updateSliderValue("necessity");
+    updateSliderValue("desire");
 
     $("#needs-external-toggle").checked = !!p.needs_external;
     $("#external-detail-wrap").hidden = !p.needs_external;
@@ -439,7 +414,7 @@
       if (p.location === name) chip.classList.add("selected");
       chip.addEventListener("click", () => {
         p.location = p.location === name ? null : name;
-        $("#detail-location-display").textContent = p.location ? "📍 " + p.location : "📍 Sense ubicació";
+        $("#detail-location-display").textContent = p.location || "Sense ubicació";
         renderDetailChips(p);
         scheduleAutosave();
       });
@@ -454,16 +429,15 @@
       await window.PB_DB.addLocation(name.trim());
       state.locations = await window.PB_DB.listLocations();
       p.location = name.trim();
-      $("#detail-location-display").textContent = "📍 " + p.location;
+      $("#detail-location-display").textContent = p.location;
       renderDetailChips(p);
       scheduleAutosave();
     });
     locWrap.appendChild(newLoc);
   }
 
-  function updateFace(key) {
-    const val = Number($(`#slider-${key}`).value);
-    $(`#face-${key}`).textContent = FACES[key][val - 1];
+  function updateSliderValue(key) {
+    $(`#value-${key}`).textContent = $(`#slider-${key}`).value;
   }
 
   function scheduleAutosave() {
@@ -500,7 +474,7 @@
       setTimeout(() => ind.classList.remove("show"), 1400);
     } catch (err) {
       console.error(err);
-      toast("No he pogut desar el canvi 😬", "⚠️");
+      toast("No s'ha pogut desar el canvi");
     }
   }
 
@@ -508,7 +482,7 @@
     ["difficulty", "necessity", "desire"].forEach((key) => {
       const slider = $(`#slider-${key}`);
       slider.addEventListener("input", () => {
-        updateFace(key);
+        updateSliderValue(key);
         scheduleAutosave();
       });
     });
@@ -527,11 +501,11 @@
       try {
         await window.PB_DB.deleteProject(state.currentProjectId);
         state.projects = state.projects.filter((p) => p.id !== state.currentProjectId);
-        toast("Projecte eliminat", "🗑️");
+        toast("Projecte eliminat");
         showView("dashboard");
       } catch (err) {
         console.error(err);
-        toast("No he pogut eliminar-lo 😬", "⚠️");
+        toast("No s'ha pogut eliminar");
       }
     });
   }
@@ -589,7 +563,7 @@
     if (!window.PB_READY) {
       $("#view-setup").hidden = false;
       $("#config-warning").innerHTML =
-        "⚠️ Encara no has connectat Supabase. Obre <code>js/config.js</code> i segueix el README per activar el desat d'idees.";
+        "Encara no has connectat Supabase. Obre <code>js/config.js</code> i segueix el README per activar el desat d'idees.";
       return;
     }
 
