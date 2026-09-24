@@ -12,6 +12,9 @@
     captureLocation: null,
     micSession: null,
     micRecording: false,
+    micStream: null,
+    micAudioCtx: null,
+    micMeterRAF: null,
     autosaveTimer: null,
     manualFormOpen: false,
     quickArmTimer: null,
@@ -240,23 +243,80 @@
             micBtn.classList.remove("recording");
             hint.classList.remove("live");
             hint.textContent = "Dicta en català";
+            stopMicVoiceMeter();
           },
           onError: (err) => {
             state.micRecording = false;
             micBtn.classList.remove("recording");
             hint.textContent = "No t'he sentit bé, torna-ho a provar";
+            stopMicVoiceMeter();
           },
         });
         state.micSession.start();
         state.micRecording = true;
         micBtn.classList.add("recording");
         hint.textContent = "Escoltant...";
+        startMicVoiceMeter();
       });
     }
 
     $("#save-idea-btn").addEventListener("click", saveNewIdea);
 
     wireQuickCapture();
+  }
+
+  /* ---------------------------------------------------------------------
+   * Mesurador de nivell de veu per al botó de dictat manual (desktop i
+   * mòbil): un flux de micro a part només per animar el botó en temps
+   * real, sense tocar el reconeixement de veu en si.
+   * ------------------------------------------------------------------- */
+
+  async function startMicVoiceMeter() {
+    try {
+      state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      return; // el dictat continua igual, només sense animació reactiva
+    }
+
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioCtx();
+    const source = audioCtx.createMediaStreamSource(state.micStream);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    function draw() {
+      state.micMeterRAF = requestAnimationFrame(draw);
+      analyser.getByteTimeDomainData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const v = (dataArray[i] - 128) / 128;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / bufferLength);
+      document.documentElement.style.setProperty("--mic-level", Math.min(1, rms * 5).toFixed(3));
+    }
+    draw();
+
+    state.micAudioCtx = audioCtx;
+  }
+
+  function stopMicVoiceMeter() {
+    if (state.micMeterRAF) cancelAnimationFrame(state.micMeterRAF);
+    state.micMeterRAF = null;
+    document.documentElement.style.setProperty("--mic-level", "0");
+
+    if (state.micStream) {
+      state.micStream.getTracks().forEach((t) => t.stop());
+      state.micStream = null;
+    }
+    if (state.micAudioCtx) {
+      state.micAudioCtx.close();
+      state.micAudioCtx = null;
+    }
   }
 
   /* ---------------------------------------------------------------------
