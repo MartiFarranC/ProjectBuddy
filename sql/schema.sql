@@ -21,9 +21,15 @@ create table if not exists public.projects (
   external_detail text,
   questionnaire_done boolean not null default false,
   archived boolean not null default false,
+  status text not null default 'idea',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Si ja tenies la taula "projects" creada d'abans (app instal·lada abans que
+-- s'afegís l'estat de la idea), aquesta línia sola n'hi ha prou per posar-la
+-- al dia sense perdre res: torna a enganxar-la i executa-la al SQL Editor.
+alter table public.projects add column if not exists status text not null default 'idea';
 
 -- Categories i ubicacions personalitzades que vas afegint
 -- (les predeterminades viuen al client, aquestes són les que tu mateix crees)
