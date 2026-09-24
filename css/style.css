@@ -440,6 +440,36 @@ label {
   color: var(--text-secondary);
 }
 
+#quick-capture.is-recording .quick-manual-link {
+  visibility: hidden;
+}
+
+.quick-cancel-btn {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.12s var(--ease), border-color 0.12s var(--ease),
+    color 0.12s var(--ease), transform 0.12s var(--ease);
+}
+
+#quick-capture.is-recording .quick-cancel-btn {
+  display: inline-flex;
+}
+
+.quick-cancel-btn.hover-target {
+  background: var(--critical);
+  border-color: var(--critical);
+  color: #fff;
+  transform: scale(1.08);
+}
+
 /* ---------- Capture view ---------- */
 
 .capture-card {
@@ -554,6 +584,72 @@ label {
 
 .field-group {
   margin-top: 22px;
+}
+
+.status-chip-row {
+  margin-top: 16px;
+}
+
+.chip.status-idea.selected {
+  background: var(--muted);
+  border-color: var(--muted);
+  color: var(--bg);
+}
+
+.chip.status-en_curs.selected {
+  background: var(--warning);
+  border-color: var(--warning);
+  color: var(--accent-ink);
+}
+
+.chip.status-feta.selected {
+  background: var(--good);
+  border-color: var(--good);
+  color: #fff;
+}
+
+.chip.status-abandonada.selected {
+  background: var(--serious);
+  border-color: var(--serious);
+  color: #1a0d08;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.status-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.status-badge.status-idea {
+  color: var(--muted);
+}
+
+.status-badge.status-en_curs {
+  color: var(--warning);
+}
+
+.status-badge.status-feta {
+  color: var(--good);
+}
+
+.status-badge.status-abandonada {
+  color: var(--serious);
 }
 
 .field-label {

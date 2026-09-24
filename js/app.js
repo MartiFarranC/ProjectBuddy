@@ -27,6 +27,8 @@
     quickSpeechSession: null,
     quickTranscript: "",
     quickLocationPromise: null,
+    quickOverCancel: false,
+    quickMoveHandler: null,
   };
 
   const $ = (sel, root) => (root || document).querySelector(sel);
@@ -341,7 +343,11 @@
       }, QUICK_ARM_DELAY_MS);
     });
 
-    ["pointerup", "pointercancel", "pointerleave"].forEach((evt) => {
+    // (Nomes "pointerup"/"pointercancel": amb "pointerleave" el ratolí
+    // interpreta arrossegar cap al botó de cancel·lar com una sortida i
+    // aturava la gravació abans d'hora; al tàctil no calia perquè el
+    // navegador ja manté el punter "capturat" al botó mentre el dit hi és.)
+    ["pointerup", "pointercancel"].forEach((evt) => {
       btn.addEventListener(evt, (e) => {
         if (state.quickPointerId !== undefined && e.pointerId !== state.quickPointerId) return;
         state.quickPointerId = undefined;
@@ -353,9 +359,16 @@
           return;
         }
         if (state.quickRecording) {
-          stopQuickRecording(evt !== "pointercancel");
+          stopQuickRecording(evt !== "pointercancel" && !state.quickOverCancel);
         }
       });
+    });
+
+    // Al ratolí (sense captura implícita de punter) deixar anar sobre el
+    // botó de cancel·lar dispara l'event aquí en lloc del botó de gravar.
+    $("#quick-cancel-btn").addEventListener("pointerup", (e) => {
+      e.preventDefault();
+      if (state.quickRecording) stopQuickRecording(false);
     });
 
     $("#quick-manual-link").addEventListener("click", () => {
@@ -394,9 +407,14 @@
     }
 
     state.quickRecording = true;
+    state.quickOverCancel = false;
     btn.classList.add("recording");
+    $("#quick-capture").classList.add("is-recording");
     hint.textContent = "T'escolto... deixa anar per desar";
     startQuickWaveform(state.quickStream);
+
+    state.quickMoveHandler = updateQuickCancelHover;
+    window.addEventListener("pointermove", state.quickMoveHandler);
 
     state.quickSpeechSession = window.PB_SPEECH.createSession({
       onInterim: () => {},
@@ -409,12 +427,29 @@
     state.quickSpeechSession.start();
   }
 
+  function updateQuickCancelHover(e) {
+    const cancelBtn = $("#quick-cancel-btn");
+    const rect = cancelBtn.getBoundingClientRect();
+    const over =
+      e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+    state.quickOverCancel = over;
+    cancelBtn.classList.toggle("hover-target", over);
+  }
+
   function stopQuickRecording(shouldSave) {
     const btn = $("#quick-record-btn");
     const hint = $("#quick-record-hint");
+    const cancelBtn = $("#quick-cancel-btn");
 
     state.quickRecording = false;
     btn.classList.remove("recording");
+    $("#quick-capture").classList.remove("is-recording");
+    cancelBtn.classList.remove("hover-target");
+    state.quickOverCancel = false;
+    if (state.quickMoveHandler) {
+      window.removeEventListener("pointermove", state.quickMoveHandler);
+      state.quickMoveHandler = null;
+    }
     stopQuickWaveform();
 
     if (state.quickStream) {
@@ -425,7 +460,10 @@
     if (!shouldSave) {
       state.quickPendingSave = false;
       if (state.quickSpeechSession) state.quickSpeechSession.stop();
-      hint.textContent = "Mantén premut per gravar una idea";
+      hint.textContent = "Gravació cancel·lada";
+      setTimeout(() => {
+        hint.textContent = "Mantén premut per gravar una idea";
+      }, 1500);
       return;
     }
 
@@ -680,9 +718,12 @@
         ? `<span>D${p.difficulty} · N${p.necessity} · G${p.desire}</span>`
         : `<span class="tag-pending">Per valorar</span>`;
 
+      const status = window.PB_DB.STATUSES.find((s) => s.value === (p.status || "idea")) || window.PB_DB.STATUSES[0];
+
       card.innerHTML = `
         <div class="card-top">
           ${p.category ? `<span class="tag"><span class="tag-dot"></span>${p.category}</span>` : "<span></span>"}
+          <span class="status-badge status-${status.value}">${status.label}</span>
         </div>
         <h3 class="card-title">${escapeHtml(p.title)}</h3>
         <p class="card-excerpt">${escapeHtml(excerpt(p.content, 140))}</p>
@@ -728,7 +769,27 @@
     $("#external-detail-input").value = p.external_detail || "";
 
     renderDetailChips(p);
+    renderDetailStatusChips(p);
     showView("detail");
+  }
+
+  function renderDetailStatusChips(p) {
+    const wrap = $("#detail-status");
+    wrap.innerHTML = "";
+    const current = p.status || "idea";
+    window.PB_DB.STATUSES.forEach((s) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip status-" + s.value;
+      chip.textContent = s.label;
+      if (current === s.value) chip.classList.add("selected");
+      chip.addEventListener("click", () => {
+        p.status = s.value;
+        renderDetailStatusChips(p);
+        scheduleAutosave();
+      });
+      wrap.appendChild(chip);
+    });
   }
 
   function renderDetailChips(p) {
@@ -813,6 +874,7 @@
       content: $("#detail-content-input").value,
       category: p.category || null,
       location: p.location || null,
+      status: p.status || "idea",
       difficulty,
       necessity,
       desire,

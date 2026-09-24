@@ -15,6 +15,13 @@ window.PB_DB = (function () {
 
   const DEFAULT_LOCATIONS = ["Casa", "Feina / Uni", "Transport", "Carrer"];
 
+  const STATUSES = [
+    { value: "idea", label: "Idea", color: "muted" },
+    { value: "en_curs", label: "En curs", color: "warning" },
+    { value: "feta", label: "Feta", color: "good" },
+    { value: "abandonada", label: "Abandonada", color: "serious" },
+  ];
+
   async function listProjects() {
     const { data, error } = await window.sb
       .from("projects")
@@ -106,6 +113,7 @@ window.PB_DB = (function () {
   return {
     DEFAULT_CATEGORIES,
     DEFAULT_LOCATIONS,
+    STATUSES,
     listProjects,
     createProject,
     updateProject,
