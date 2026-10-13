@@ -26,6 +26,9 @@
     quickWaveRAF: null,
     quickSpeechSession: null,
     quickTranscript: "",
+    quickInterim: "",
+    quickSpeechError: null,
+    quickSpeechEnded: false,
     quickLocationPromise: null,
     quickOverCancel: false,
     quickMoveHandler: null,
@@ -397,13 +400,31 @@
     const hint = $("#quick-record-hint");
 
     state.quickTranscript = "";
+    state.quickInterim = "";
+    state.quickSpeechError = null;
+    state.quickSpeechEnded = false;
     state.quickLocationPromise = lookupQuickLocation();
 
+    // El reconeixement arrenca primer: en alguns mòbils, si el flux del
+    // getUserMedia (el de l'ona) agafa el micro abans, el reconeixement
+    // només rep silenci.
+    state.quickSpeechSession = window.PB_SPEECH.createSession({
+      onInterim: (text) => {
+        state.quickInterim = text;
+      },
+      onFinalChunk: (text) => {
+        state.quickTranscript = (state.quickTranscript + " " + text).trim();
+        state.quickInterim = "";
+      },
+      onEnd: onQuickSpeechEnd,
+      onError: (err) => {
+        state.quickSpeechError = err;
+      },
+    });
     try {
-      state.quickStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      state.quickSpeechSession.start();
     } catch (err) {
-      toast("Cal permís de micròfon per gravar");
-      return;
+      console.error(err);
     }
 
     state.quickRecording = true;
@@ -411,20 +432,54 @@
     btn.classList.add("recording");
     $("#quick-capture").classList.add("is-recording");
     hint.textContent = "T'escolto... deixa anar per desar";
-    startQuickWaveform(state.quickStream);
 
     state.quickMoveHandler = updateQuickCancelHover;
     window.addEventListener("pointermove", state.quickMoveHandler);
 
-    state.quickSpeechSession = window.PB_SPEECH.createSession({
-      onInterim: () => {},
-      onFinalChunk: (text) => {
-        state.quickTranscript = (state.quickTranscript + " " + text).trim();
-      },
-      onEnd: finishQuickSave,
-      onError: () => {},
-    });
-    state.quickSpeechSession.start();
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      // Sense ona no passa res: el reconeixement pot anar igualment
+    }
+    if (!stream) return;
+    if (!state.quickRecording) {
+      // Ja has deixat anar mentre s'obria el micro
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+    state.quickStream = stream;
+    startQuickWaveform(stream);
+  }
+
+  // Errors després dels quals no té sentit tornar a engegar el reconeixement
+  const FATAL_SPEECH_ERRORS = ["not-allowed", "service-not-allowed", "audio-capture", "network", "language-not-supported"];
+
+  function onQuickSpeechEnd() {
+    // El mòbil sovint talla el reconeixement sol després d'una pausa: si
+    // encara tens el botó premut, el tornem a engegar i no es perd res.
+    if (state.quickRecording && !FATAL_SPEECH_ERRORS.includes(state.quickSpeechError)) {
+      state.quickTranscript = (state.quickTranscript + " " + state.quickInterim).trim();
+      state.quickInterim = "";
+      state.quickSpeechError = null;
+      try {
+        state.quickSpeechSession.start();
+        return;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    state.quickSpeechEnded = true;
+    finishQuickSave();
+  }
+
+  function quickSpeechErrorText(err) {
+    if (err === "not-allowed" || err === "service-not-allowed")
+      return "El navegador no deixa fer servir el dictat (revisa els permisos)";
+    if (err === "network") return "El dictat necessita connexió a internet";
+    if (err === "audio-capture") return "El dictat no pot accedir al micròfon";
+    if (err === "language-not-supported") return "El dictat en català no està disponible en aquest navegador";
+    return "No t'he sentit, torna-ho a provar";
   }
 
   function updateQuickCancelHover(e) {
@@ -470,8 +525,10 @@
     state.quickPendingSave = true;
     btn.classList.add("saving");
     hint.textContent = "Desant...";
-    if (state.quickSpeechSession) {
+    if (state.quickSpeechSession && !state.quickSpeechEnded) {
       state.quickSpeechSession.stop();
+      // Si el navegador no arriba a avisar del final, desa igualment
+      setTimeout(finishQuickSave, 2500);
     } else {
       finishQuickSave();
     }
@@ -485,9 +542,9 @@
     const hint = $("#quick-record-hint");
     btn.classList.remove("saving");
 
-    const content = state.quickTranscript.trim();
+    const content = (state.quickTranscript + " " + state.quickInterim).trim();
     if (!content) {
-      hint.textContent = "No t'he sentit, torna-ho a provar";
+      hint.textContent = quickSpeechErrorText(state.quickSpeechError);
       setTimeout(() => {
         hint.textContent = "Mantén premut per gravar una idea";
       }, 2200);
