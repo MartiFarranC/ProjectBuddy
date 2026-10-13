@@ -1,0 +1,11 @@
+#!/bin/sh
+# Puja la versió menor de js/version.js a cada commit: 0.9 -> 0.10 -> 0.11...
+# (la major es queda a 0). S'activa amb: git config core.hooksPath scripts/hooks
+f="js/version.js"
+[ -f "$f" ] || exit 0
+cur=$(sed -n 's/.*PB_VERSION = "0\.\([0-9]*\)".*/\1/p' "$f")
+[ -n "$cur" ] || { echo "pre-commit: no trobo la versió a $f" >&2; exit 1; }
+next=$((cur + 1))
+sed -i "s/PB_VERSION = \"0\.$cur\"/PB_VERSION = \"0.$next\"/" "$f"
+git add "$f"
+echo "Versió: v0.$next"

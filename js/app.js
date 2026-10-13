@@ -1124,6 +1124,7 @@
    * ------------------------------------------------------------------- */
 
   async function boot() {
+    $("#app-version").textContent = "v" + (window.PB_VERSION || "0.0");
     wireNav();
     wireCapture();
     wireDetail();
