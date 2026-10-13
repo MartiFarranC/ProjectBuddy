@@ -27,6 +27,8 @@
     quickSpeechSession: null,
     quickTranscript: "",
     quickInterim: "",
+    quickSpeaking: false,
+    quickSpeechPulse: 0,
     quickSpeechError: null,
     quickSpeechEnded: false,
     quickLocationPromise: null,
@@ -405,20 +407,29 @@
     state.quickSpeechEnded = false;
     state.quickLocationPromise = lookupQuickLocation();
 
-    // El reconeixement arrenca primer: en alguns mòbils, si el flux del
-    // getUserMedia (el de l'ona) agafa el micro abans, el reconeixement
-    // només rep silenci.
+    // Només el reconeixement de veu fa servir el micro: si a més obrim un
+    // getUserMedia per a l'ona, en molts mòbils el reconeixement es queda
+    // sense àudio. L'ona es mou amb els events de veu del reconeixement.
+    state.quickSpeaking = false;
     state.quickSpeechSession = window.PB_SPEECH.createSession({
       onInterim: (text) => {
         state.quickInterim = text;
+        state.quickSpeechPulse = 1;
       },
       onFinalChunk: (text) => {
         state.quickTranscript = (state.quickTranscript + " " + text).trim();
         state.quickInterim = "";
+        state.quickSpeechPulse = 1;
       },
       onEnd: onQuickSpeechEnd,
       onError: (err) => {
         state.quickSpeechError = err;
+      },
+      onSpeechStart: () => {
+        state.quickSpeaking = true;
+      },
+      onSpeechEnd: () => {
+        state.quickSpeaking = false;
       },
     });
     try {
@@ -432,24 +443,10 @@
     btn.classList.add("recording");
     $("#quick-capture").classList.add("is-recording");
     hint.textContent = "T'escolto... deixa anar per desar";
+    startQuickWaveform();
 
     state.quickMoveHandler = updateQuickCancelHover;
     window.addEventListener("pointermove", state.quickMoveHandler);
-
-    let stream = null;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err) {
-      // Sense ona no passa res: el reconeixement pot anar igualment
-    }
-    if (!stream) return;
-    if (!state.quickRecording) {
-      // Ja has deixat anar mentre s'obria el micro
-      stream.getTracks().forEach((t) => t.stop());
-      return;
-    }
-    state.quickStream = stream;
-    startQuickWaveform(stream);
   }
 
   // Errors després dels quals no té sentit tornar a engegar el reconeixement
@@ -479,7 +476,7 @@
     if (err === "network") return "El dictat necessita connexió a internet";
     if (err === "audio-capture") return "El dictat no pot accedir al micròfon";
     if (err === "language-not-supported") return "El dictat en català no està disponible en aquest navegador";
-    return "No t'he sentit, torna-ho a provar";
+    return "No t'he sentit, torna-ho a provar" + (err ? ` (${err})` : "");
   }
 
   function updateQuickCancelHover(e) {
@@ -617,16 +614,10 @@
     );
   }
 
-  function startQuickWaveform(stream) {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    const audioCtx = new AudioCtx();
-    const source = audioCtx.createMediaStreamSource(stream);
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+  // Ona "sintètica": no llegeix el micro (el té el reconeixement de veu),
+  // sinó que s'anima amb els events de veu: puja quan detecta que parles i
+  // fa un pic a cada tros de text reconegut.
+  function startQuickWaveform() {
     const canvas = $("#quick-wave-canvas");
     const ctx = canvas.getContext("2d");
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -638,36 +629,37 @@
     const waveColor =
       getComputedStyle(document.documentElement).getPropertyValue("--critical").trim() || "#d03b3b";
 
-    function draw() {
-      state.quickWaveRAF = requestAnimationFrame(draw);
-      analyser.getByteTimeDomainData(dataArray);
+    let level = 0;
+    state.quickSpeechPulse = 0;
+    const t0 = performance.now();
 
-      let sum = 0;
-      for (let i = 0; i < bufferLength; i++) {
-        const v = (dataArray[i] - 128) / 128;
-        sum += v * v;
-      }
-      const rms = Math.sqrt(sum / bufferLength);
-      document.documentElement.style.setProperty("--mic-level", Math.min(1, rms * 5).toFixed(3));
+    function draw(now) {
+      state.quickWaveRAF = requestAnimationFrame(draw);
+      const t = ((now || t0) - t0) / 1000;
+
+      const target = Math.max(state.quickSpeaking ? 0.55 : 0.08, state.quickSpeechPulse);
+      level += (target - level) * 0.12;
+      state.quickSpeechPulse *= 0.92;
+      document.documentElement.style.setProperty("--mic-level", level.toFixed(3));
 
       ctx.clearRect(0, 0, size, size);
       ctx.lineWidth = 2.5;
       ctx.strokeStyle = waveColor;
       ctx.beginPath();
-      const slice = size / bufferLength;
-      let x = 0;
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128;
-        const y = (v * size) / 2;
+      const amp = (size / 2) * 0.6 * level;
+      const steps = 64;
+      for (let i = 0; i <= steps; i++) {
+        const x = (i / steps) * size;
+        const env = Math.sin((i / steps) * Math.PI); // s'apaga als extrems
+        const y =
+          size / 2 +
+          env * amp * (Math.sin(i * 0.45 + t * 9) * 0.6 + Math.sin(i * 0.17 - t * 5) * 0.4);
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
-        x += slice;
       }
       ctx.stroke();
     }
     draw();
-
-    state.quickAudioCtx = audioCtx;
   }
 
   function stopQuickWaveform() {

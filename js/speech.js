@@ -6,7 +6,7 @@ window.PB_SPEECH = (function () {
     window.SpeechRecognition || window.webkitSpeechRecognition;
   const supported = !!SpeechRecognition;
 
-  function createSession({ onInterim, onFinalChunk, onEnd, onError }) {
+  function createSession({ onInterim, onFinalChunk, onEnd, onError, onSpeechStart, onSpeechEnd }) {
     if (!supported) return null;
     const rec = new SpeechRecognition();
     rec.lang = "ca-ES";
@@ -27,6 +27,8 @@ window.PB_SPEECH = (function () {
     };
 
     rec.onerror = (event) => onError && onError(event.error);
+    rec.onspeechstart = () => onSpeechStart && onSpeechStart();
+    rec.onspeechend = () => onSpeechEnd && onSpeechEnd();
     rec.onend = () => onEnd && onEnd();
 
     return {
