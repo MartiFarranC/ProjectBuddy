@@ -562,6 +562,7 @@
       });
       state.projects.unshift(created);
       toast("Idea desada");
+      openDetail(created.id);
     } catch (err) {
       console.error(err);
       toast("No s'ha pogut desar la idea");
