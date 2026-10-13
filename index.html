@@ -19,6 +19,36 @@
     </div>
   </div>
 
+  <!-- ============== Accés (login / registre) ============== -->
+  <div id="view-auth" class="login-wrap" hidden>
+    <form class="login-card auth-card" id="auth-form" novalidate>
+      <h1>ProjectBuddy</h1>
+      <p id="auth-sub">Entra per veure les teves idees.</p>
+
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="auth-tab active" data-auth-mode="login" role="tab">Entra</button>
+        <button type="button" class="auth-tab" data-auth-mode="signup" role="tab">Registra't</button>
+      </div>
+
+      <label class="auth-field" id="auth-name-field" hidden>
+        <span class="field-label">Nom</span>
+        <input type="text" id="auth-name" autocomplete="name" />
+      </label>
+      <label class="auth-field">
+        <span class="field-label">Correu</span>
+        <input type="email" id="auth-email" autocomplete="email" required />
+      </label>
+      <label class="auth-field">
+        <span class="field-label">Contrasenya</span>
+        <input type="password" id="auth-password" autocomplete="current-password" required minlength="6" />
+      </label>
+
+      <div class="auth-error" id="auth-error" role="alert" hidden></div>
+
+      <button type="submit" class="btn btn-primary auth-submit" id="auth-submit">Entra</button>
+    </form>
+  </div>
+
   <!-- ============== APP ============== -->
   <div id="app" hidden>
     <aside class="sidebar">
@@ -28,6 +58,10 @@
         <li><button class="nav-item" data-nav="dashboard">Projectes</button></li>
         <li><button class="nav-item" data-nav="stats">Estadístiques</button></li>
       </ul>
+      <div class="sidebar-footer">
+        <div class="user-chip" id="user-chip"></div>
+        <button type="button" class="nav-item" id="logout-btn">Surt</button>
+      </div>
     </aside>
 
     <main id="content">
@@ -235,6 +269,7 @@
       <button data-nav="capture" class="active">Nova</button>
       <button data-nav="dashboard">Projectes</button>
       <button data-nav="stats">Stats</button>
+      <button type="button" id="logout-btn-mobile">Surt</button>
     </nav>
 
     <button class="fab" id="fab-new-idea" title="Nova idea">+</button>

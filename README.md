@@ -36,14 +36,20 @@ i des de l'ordinador.
    - `anon public` key
 4. Obre [`js/config.js`](js/config.js) i enganxa aquests dos valors.
 
-No hi ha cap login, compte ni contrasenya: obres la pàgina i ja hi ets, directe.
+5. A **Authentication → Providers → Email**, deixa activat el proveïdor
+   d'email. Si vols que els comptes nous no hagin de confirmar el correu,
+   desactiva **Confirm email**.
 
-> ⚠️ **Això vol dir que la URL en si és tota la protecció que tens.**
-> Qualsevol persona que l'obri (o que trobi la clau `anon`, que és pública al
-> codi font de la pàgina) pot llegir i esborrar les teves idees — no hi ha cap
-> usuari ni permís pel mig. No comparteixis ni publicitis l'enllaç, i si mai
-> vols tornar-hi a posar una mica de protecció (contrasenya, login...), torna-
-> m'ho a demanar.
+### Usuaris
+
+L'app demana entrar (o registrar-se) amb correu i contrasenya, via Supabase
+Auth. Cada projecte, categoria i ubicació pertany a un usuari, i les polítiques
+RLS de `sql/schema.sql` fan que cadascú només vegi les seves dades — la clau
+`anon` de `js/config.js` sola ja no dona accés a res.
+
+Si tenies una base de dades d'abans del login, torna a executar
+`sql/schema.sql`: les files sense propietari passen al primer usuari
+registrat.
 
 ## 2. Publica a GitHub Pages
 

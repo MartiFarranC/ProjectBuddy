@@ -955,14 +955,111 @@
     state.locations = locations;
   }
 
-  async function enterApp() {
+  async function enterApp(user) {
     $("#view-setup").hidden = true;
+    $("#view-auth").hidden = true;
     $("#app").hidden = false;
+    $("#user-chip").textContent =
+      (user.user_metadata && user.user_metadata.name) || user.email;
 
     await loadData();
     renderCaptureChips();
 
     showView(isMobile() ? "capture" : "dashboard");
+  }
+
+  /* ---------------------------------------------------------------------
+   * Accés (login / registre)
+   * ------------------------------------------------------------------- */
+
+  let authMode = "login";
+
+  function showAuth() {
+    state.projects = [];
+    state.categories = [];
+    state.locations = [];
+    $("#app").hidden = true;
+    $("#view-auth").hidden = false;
+    $("#auth-password").value = "";
+    setAuthMessage("");
+  }
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    const signup = mode === "signup";
+    $$(".auth-tab").forEach((t) => t.classList.toggle("active", t.dataset.authMode === mode));
+    $("#auth-name-field").hidden = !signup;
+    $("#auth-sub").textContent = signup
+      ? "Crea un compte per començar a desar idees."
+      : "Entra per veure les teves idees.";
+    $("#auth-submit").textContent = signup ? "Crea el compte" : "Entra";
+    $("#auth-password").autocomplete = signup ? "new-password" : "current-password";
+    setAuthMessage("");
+  }
+
+  function setAuthMessage(msg, isInfo) {
+    const el = $("#auth-error");
+    el.textContent = msg;
+    el.hidden = !msg;
+    el.classList.toggle("info", !!isInfo);
+  }
+
+  function authErrorText(error) {
+    const code = error.code || "";
+    if (code === "invalid_credentials") return "Correu o contrasenya incorrectes.";
+    if (code === "user_already_exists") return "Ja hi ha un compte amb aquest correu. Prova d'entrar.";
+    if (code === "email_not_confirmed") return "Encara has de confirmar el correu (mira la safata d'entrada).";
+    if (code === "weak_password") return "La contrasenya és massa feble (mínim 6 caràcters).";
+    return error.message || "No s'ha pogut completar. Torna-ho a provar.";
+  }
+
+  async function submitAuth(e) {
+    e.preventDefault();
+    const email = $("#auth-email").value.trim();
+    const password = $("#auth-password").value;
+    if (!email || !password) {
+      setAuthMessage("Omple el correu i la contrasenya.");
+      return;
+    }
+
+    const btn = $("#auth-submit");
+    btn.disabled = true;
+    setAuthMessage("");
+    try {
+      if (authMode === "signup") {
+        const name = $("#auth-name").value.trim();
+        const { data, error } = await window.sb.auth.signUp({
+          email,
+          password,
+          options: { data: name ? { name } : {} },
+        });
+        if (error) throw error;
+        if (!data.session) {
+          setAuthMode("login");
+          setAuthMessage("Compte creat. Confirma'l des del correu que t'hem enviat i després entra.", true);
+        }
+      } else {
+        const { error } = await window.sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+    } catch (err) {
+      setAuthMessage(authErrorText(err));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function logout() {
+    await window.sb.auth.signOut();
+  }
+
+  function wireAuth() {
+    $$(".auth-tab").forEach((t) =>
+      t.addEventListener("click", () => setAuthMode(t.dataset.authMode))
+    );
+    $("#auth-form").addEventListener("submit", submitAuth);
+    $("#logout-btn").addEventListener("click", logout);
+    $("#logout-btn-mobile").addEventListener("click", logout);
   }
 
   /* ---------------------------------------------------------------------
@@ -984,7 +1081,28 @@
       return;
     }
 
-    await enterApp();
+    wireAuth();
+
+    // Una sola font de veritat: cada canvi de sessió (inici, login, logout,
+    // caducitat) decideix si es mostra l'app o la pantalla d'accés.
+    let currentUserId; // undefined = encara no sabem res de la sessió
+    window.sb.auth.onAuthStateChange((_event, session) => {
+      const user = session ? session.user : null;
+      const userId = user ? user.id : null;
+      if (userId === currentUserId) return; // p.ex. refresc de token
+      currentUserId = userId;
+      // Fora del callback: Supabase no recomana fer crides await a dins
+      setTimeout(() => {
+        if (user) {
+          enterApp(user).catch((err) => {
+            console.error(err);
+            toast("No s'han pogut carregar les dades");
+          });
+        } else {
+          showAuth();
+        }
+      }, 0);
+    });
   }
 
   document.addEventListener("DOMContentLoaded", boot);

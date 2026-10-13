@@ -274,6 +274,7 @@ main#content {
 textarea,
 input[type="text"],
 input[type="email"],
+input[type="password"],
 select {
   width: 100%;
   background: var(--surface-2);
@@ -1124,6 +1125,67 @@ input[type="range"]::-moz-range-thumb {
   color: var(--muted);
   font-size: 14px;
   margin: 0;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 24px 0 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.auth-tab {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 4px;
+  margin-right: 12px;
+  box-shadow: inset 0 -2px 0 transparent;
+  transition: color 0.15s, box-shadow 0.15s var(--ease);
+}
+
+.auth-tab:hover {
+  color: var(--text-secondary);
+}
+
+.auth-tab.active {
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.auth-field {
+  display: block;
+  margin-top: 16px;
+}
+
+.auth-field .field-label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.auth-error {
+  margin-top: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e08585;
+}
+
+.auth-error.info {
+  color: var(--text-secondary);
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 24px;
+}
+
+.user-chip {
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .config-warning {
