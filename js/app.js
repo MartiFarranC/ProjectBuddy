@@ -1115,8 +1115,37 @@
    * Arrencada
    * ------------------------------------------------------------------- */
 
+  // GitHub Pages deixa que el navegador guardi la pàgina fins a 10 minuts, i
+  // al mòbil un recàrrega normal pot seguir mostrant la versió vella. A cada
+  // càrrega mirem (saltant-nos la memòria cau) quina versió hi ha publicada;
+  // si és més nova, tornem a carregar des d'una URL nova (?v=), que el
+  // navegador no té guardada.
+  async function checkForNewVersion() {
+    try {
+      const res = await fetch(`js/version.js?t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const m = (await res.text()).match(/PB_VERSION = "([0-9.]+)"/);
+      const latest = m && m[1];
+      if (!latest || latest === window.PB_VERSION) return;
+
+      // Evita bucles si la CDN encara serveix la versió antiga
+      const key = "pb-reloaded-for";
+      try {
+        if (sessionStorage.getItem(key) === latest) return;
+        sessionStorage.setItem(key, latest);
+      } catch (e) {}
+
+      const url = new URL(window.location.href);
+      url.searchParams.set("v", latest);
+      window.location.replace(url.toString());
+    } catch (err) {
+      // Sense xarxa: ens quedem amb el que hi ha
+    }
+  }
+
   async function boot() {
     $("#app-version").textContent = "v" + (window.PB_VERSION || "0.0");
+    checkForNewVersion();
     wireNav();
     wireCapture();
     wireDetail();

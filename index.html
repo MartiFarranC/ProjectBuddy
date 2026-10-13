@@ -6,7 +6,9 @@
   <title>ProjectBuddy · les teves idees</title>
   <meta name="description" content="Gestor personal d'idees i projectes futurs" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💡</text></svg>" />
-  <link rel="stylesheet" href="css/style.css" />
+  <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
+       nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
+  <link rel="stylesheet" href="css/style.css?v=0.3" />
 </head>
 <body>
 
@@ -284,12 +286,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js"></script>
-  <script src="js/config.js"></script>
-  <script src="js/supabaseClient.js"></script>
-  <script src="js/db.js"></script>
-  <script src="js/speech.js"></script>
-  <script src="js/charts.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/version.js?v=0.3"></script>
+  <script src="js/config.js?v=0.3"></script>
+  <script src="js/supabaseClient.js?v=0.3"></script>
+  <script src="js/db.js?v=0.3"></script>
+  <script src="js/speech.js?v=0.3"></script>
+  <script src="js/charts.js?v=0.3"></script>
+  <script src="js/app.js?v=0.3"></script>
 </body>
 </html>

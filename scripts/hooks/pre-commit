@@ -8,4 +8,9 @@ cur=$(sed -n 's/.*PB_VERSION = "0\.\([0-9]*\)".*/\1/p' "$f")
 next=$((cur + 1))
 sed -i "s/PB_VERSION = \"0\.$cur\"/PB_VERSION = \"0.$next\"/" "$f"
 git add "$f"
+
+# Mateix número als ?v= de css/js de l'index.html, perquè cada versió sigui
+# una URL nova i el navegador no reaprofiti fitxers antics de la memòria cau.
+sed -i "s/?v=0\.[0-9]*\"/?v=0.$next\"/g" index.html
+git add index.html
 echo "Versió: v0.$next"
