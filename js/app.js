@@ -238,6 +238,7 @@
         const textarea = $("#idea-textarea");
         state.micSession = window.PB_SPEECH.createSession({
           onInterim: (text) => {
+            if (!text) return;
             hint.textContent = text;
             hint.classList.add("live");
           },
