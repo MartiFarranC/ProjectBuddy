@@ -341,8 +341,10 @@ label {
 }
 
 .quick-record-icon {
-  font-size: 52px;
-  line-height: 1;
+  display: block;
+  width: 78px;
+  height: 78px;
+  filter: drop-shadow(0 0 12px rgba(215, 161, 61, 0.45));
   animation: quick-float 3s ease-in-out infinite;
   transition: opacity 0.15s;
 }
@@ -1884,16 +1886,19 @@ textarea.idea-reader-text:focus {
   margin-left: -2px;
 }
 
-.brand-bulb .bulb-glass {
+.brand-bulb .bulb-glass,
+.bulb-lit .bulb-glass {
   fill: rgba(215, 161, 61, 0.18);
   stroke: var(--accent);
 }
 
-.brand-bulb .bulb-filament {
+.brand-bulb .bulb-filament,
+.bulb-lit .bulb-filament {
   stroke: var(--accent);
 }
 
-.brand-bulb .bulb-ray {
+.brand-bulb .bulb-ray,
+.bulb-lit .bulb-ray {
   opacity: 0.85;
 }
 
