@@ -8,7 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💡</text></svg>" />
   <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
        nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
-  <link rel="stylesheet" href="css/style.css?v=0.12" />
+  <link rel="stylesheet" href="css/style.css?v=0.13" />
 </head>
 <body>
 
@@ -277,7 +277,13 @@
           <span class="dash-count" id="groups-count"></span>
           <button type="button" class="btn btn-ghost dash-header-action" data-nav="map">Mapa mental</button>
         </div>
+        <div class="dash-controls">
+          <div class="search-box">
+            <input type="text" id="group-search-input" placeholder="Cerca projectes..." />
+          </div>
+        </div>
         <div id="group-grid" class="project-grid"></div>
+        <div id="groups-no-results" class="empty-state" hidden>Cap projecte coincideix amb la cerca.</div>
         <div id="groups-empty" class="empty-state" hidden>
           Encara no tens cap projecte. Crea'n un amb «Crear projecte nou», a dalt a la dreta.
         </div>
@@ -401,12 +407,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js?v=0.12"></script>
-  <script src="js/config.js?v=0.12"></script>
-  <script src="js/supabaseClient.js?v=0.12"></script>
-  <script src="js/db.js?v=0.12"></script>
-  <script src="js/speech.js?v=0.12"></script>
-  <script src="js/charts.js?v=0.12"></script>
-  <script src="js/app.js?v=0.12"></script>
+  <script src="js/version.js?v=0.13"></script>
+  <script src="js/config.js?v=0.13"></script>
+  <script src="js/supabaseClient.js?v=0.13"></script>
+  <script src="js/db.js?v=0.13"></script>
+  <script src="js/speech.js?v=0.13"></script>
+  <script src="js/charts.js?v=0.13"></script>
+  <script src="js/app.js?v=0.13"></script>
 </body>
 </html>

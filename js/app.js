@@ -1177,6 +1177,8 @@
     $("#groups-count").textContent = `${n} projecte${n === 1 ? "" : "s"}`;
     grid.innerHTML = "";
     empty.hidden = n > 0;
+    $("#groups-no-results").hidden = true;
+    $("#group-search-input").closest(".dash-controls").hidden = !n || !state.groupsAvailable;
     if (!state.groupsAvailable) {
       empty.hidden = false;
       empty.textContent =
@@ -1184,7 +1186,17 @@
       return;
     }
 
-    state.groups.forEach((g) => {
+    // Cerca pel nom, la descripció, la categoria i les idees que conté
+    const search = ($("#group-search-input").value || "").trim().toLowerCase();
+    const list = search
+      ? state.groups.filter((g) =>
+          [g.title, g.content, g.category, ...ideasOfGroup(g.id).map(ideaName)]
+            .some((text) => (text || "").toLowerCase().includes(search))
+        )
+      : state.groups;
+    $("#groups-no-results").hidden = !n || list.length > 0;
+
+    list.forEach((g) => {
       const count = ideasOfGroup(g.id).length;
       const card = document.createElement("div");
       card.className = "project-card";
@@ -2028,6 +2040,7 @@
     wireGroups();
 
     $("#search-input").addEventListener("input", debounce(renderDashboard, 150));
+    $("#group-search-input").addEventListener("input", debounce(renderGroups, 150));
     $("#sort-select").addEventListener("change", renderDashboard);
 
     if (!window.PB_READY) {
