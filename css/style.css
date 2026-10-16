@@ -1601,7 +1601,8 @@ body.on-map .fab {
   justify-content: center;
   text-align: center;
   color: var(--text);
-  will-change: transform, width, height;
+  will-change: transform;
+  transform-origin: 50% 50%;
   transition: opacity 0.5s var(--ease), filter 0.5s var(--ease), box-shadow 0.3s;
 }
 
@@ -1627,7 +1628,7 @@ body.on-map .fab {
 /* La mida de lletra la calcula JS (--fit) perquè hi càpiga el nom sencer */
 .map-bubble-title,
 .map-idea-title {
-  width: 74%;
+  width: 80%;
   font-size: min(calc(var(--fit, 12) * 1cqw), 22px);
   line-height: 1.2;
   overflow-wrap: normal;

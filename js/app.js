@@ -1439,6 +1439,7 @@
   // i es desa com a factor (--fit): el CSS el multiplica per l'amplada real
   // de la bombolla (unitats cqw), així s'adapta sol quan la bombolla creix.
   const FIT_REF = 100;
+  const MAP_TEXT_WIDTH = 0.8; // ha de coincidir amb l'amplada del títol al CSS
   let fitMeasurer = null;
 
   function fitBubbleText(el, selector, heightShare) {
@@ -1456,7 +1457,7 @@
       document.body.appendChild(fitMeasurer);
     }
     fitMeasurer.style.fontWeight = isGroup ? "700" : "600";
-    fitMeasurer.style.width = `${FIT_REF * 0.74}px`;
+    fitMeasurer.style.width = `${FIT_REF * MAP_TEXT_WIDTH}px`;
     fitMeasurer.textContent = text;
 
     const maxH = FIT_REF * heightShare;
@@ -1466,7 +1467,7 @@
     for (let i = 0; i < 12; i++) {
       const mid = (lo + hi) / 2;
       fitMeasurer.style.fontSize = `${mid}px`;
-      const fits = fitMeasurer.scrollHeight <= maxH && fitMeasurer.scrollWidth <= FIT_REF * 0.74 + 0.5;
+      const fits = fitMeasurer.scrollHeight <= maxH && fitMeasurer.scrollWidth <= FIT_REF * MAP_TEXT_WIDTH + 0.5;
       if (fits) lo = mid;
       else hi = mid;
     }
@@ -1506,10 +1507,17 @@
       n.rx = n.x + a * (Math.sin(t * s.fx1 * 2 * Math.PI + s.p1) * 0.7 + Math.sin(t * s.fx2 * 2 * Math.PI + s.p2) * 0.3);
       n.ry = n.y + a * (Math.sin(t * s.fy1 * 2 * Math.PI + s.p3) * 0.7 + Math.sin(t * s.fy2 * 2 * Math.PI + s.p4) * 0.3);
       const breathe = 1 + amp * 0.025 * Math.sin(t * s.breath * 2 * Math.PI + s.p2);
-      const size = Math.max(0, n.size * breathe);
-      n.el.style.width = `${size}px`;
-      n.el.style.height = `${size}px`;
-      n.el.style.transform = `translate3d(${n.rx - size / 2}px, ${n.ry - size / 2}px, 0)`;
+      // La mida de maqueta només canvia quan canvia la mida objectiu; el
+      // creixement i la respiració es fan escalant. Si es canviés l'amplada
+      // a cada fotograma, el text es tornaria a partir en línies i parpellejaria.
+      if (n.tsize > 0 && Math.abs((n.layout || 0) - n.tsize) > 0.5) {
+        n.layout = n.tsize;
+        n.el.style.width = `${n.layout}px`;
+        n.el.style.height = `${n.layout}px`;
+      }
+      const L = n.layout || 1;
+      const scale = Math.max(0, (n.size * breathe) / L);
+      n.el.style.transform = `translate3d(${(n.rx - L / 2).toFixed(2)}px, ${(n.ry - L / 2).toFixed(2)}px, 0) scale(${scale.toFixed(4)})`;
     });
 
     // Fils corbats del projecte obert a cadascuna de les seves idees
@@ -1571,7 +1579,7 @@
     const sizes = counts.map((c, i) => {
       const bySize = base * (0.75 + 0.5 * (c / maxCount));
       // Un nom llarg fa la bombolla més gran perquè es pugui llegir sencer
-      const readable = sizeForReadable(groups[i].title || "Projecte sense títol", true, 0.5, 11);
+      const readable = sizeForReadable(groups[i].title || "Projecte sense títol", true, 0.56, 11);
       return Math.min(Math.max(bySize, readable), maxSize);
     });
     const positions = layoutBubbles(sizes, W, H);
@@ -1589,7 +1597,7 @@
         <span class="map-bubble-title">${escapeHtml(g.title || "Projecte sense títol")}</span>
         <span class="map-bubble-count">${count} idea${count === 1 ? "" : "s"}</span>`;
       el.setAttribute("aria-label", `${g.title}: ${count} idees`);
-      fitBubbleText(el, ".map-bubble-title", 0.5);
+      fitBubbleText(el, ".map-bubble-title", 0.56);
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         if (state.mapFocusId === g.id) openGroup(g.id, "map");
@@ -1757,7 +1765,7 @@
     const pts = items.map((p, i) => {
       const seed = nodeSeed((p ? p.id : "buit") + groupId);
       const size = p
-        ? Math.min(Math.max(64 * scale, sizeForReadable(ideaName(p), false, 0.62, 9.5)), 160 * scale)
+        ? Math.min(Math.max(64 * scale, sizeForReadable(ideaName(p), false, 0.7, 10)), 160 * scale)
         : 96 * scale;
       const a = -Math.PI / 2 + (i * 2 * Math.PI) / items.length + seed.bend * 0.35;
       const ring = hubR + size / 2 + (45 + seed.breath * 260) * scale; // 0.2..0.45 → distàncies variades
@@ -1777,7 +1785,7 @@
       el.style.setProperty("--idea-color", p ? `var(--${statusOf(p).color})` : "var(--muted)");
       el.style.setProperty("--delay", `${(i * 0.04).toFixed(2)}s`);
       el.innerHTML = `<span class="map-idea-title">${escapeHtml(p ? ideaName(p) : "Encara no hi ha idees")}</span>`;
-      fitBubbleText(el, ".map-idea-title", 0.62);
+      fitBubbleText(el, ".map-idea-title", 0.7);
       if (p) {
         el.title = ideaName(p);
         el.addEventListener("click", (e) => {
