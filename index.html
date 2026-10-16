@@ -8,9 +8,28 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💡</text></svg>" />
   <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
        nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
-  <link rel="stylesheet" href="css/style.css?v=0.15" />
+  <link rel="stylesheet" href="css/style.css?v=0.16" />
 </head>
 <body>
+
+  <!-- Pantalla de càrrega inicial: la bombeta del logotip s'encén -->
+  <div id="boot-loader" class="boot-loader" role="status" aria-live="polite">
+    <div class="bulb-loader">
+      <svg class="bulb" viewBox="0 0 64 64" aria-hidden="true">
+        <g class="bulb-rays">
+          <line class="bulb-ray" style="--i:0" x1="15" y1="26" x2="10" y2="26" />
+          <line class="bulb-ray" style="--i:1" x1="19.98" y1="13.98" x2="16.44" y2="10.44" />
+          <line class="bulb-ray" style="--i:2" x1="32" y1="9" x2="32" y2="4" />
+          <line class="bulb-ray" style="--i:3" x1="44.02" y1="13.98" x2="47.56" y2="10.44" />
+          <line class="bulb-ray" style="--i:4" x1="49" y1="26" x2="54" y2="26" />
+        </g>
+        <path class="bulb-glass" d="M32 13a13 13 0 0 0-7.8 23.4c1.3 1 2 2.4 2 4V42h11.6v-1.6c0-1.6.7-3 2-4A13 13 0 0 0 32 13z" />
+        <path class="bulb-filament" d="M29.5 41v-7.5M34.5 41v-7.5M29.5 33.5c0-2.6 1.1-4 2.5-4s2.5 1.4 2.5 4" />
+        <path class="bulb-base" d="M27 46h10M27.5 50h9M30 54h4" />
+      </svg>
+    </div>
+    <p class="boot-loader-text" id="boot-loader-text">Encenent les idees…</p>
+  </div>
 
   <!-- ============== Configuració pendent (només si falta connectar Supabase) ============== -->
   <div id="view-setup" class="login-wrap" hidden>
@@ -54,7 +73,7 @@
   <!-- ============== APP ============== -->
   <div id="app" hidden>
     <aside class="sidebar">
-      <div class="brand">ProjectBuddy</div>
+      <div class="brand"><span class="brand-bulb" data-bulb></span>ProjectBuddy</div>
       <ul class="nav-list">
         <li><button class="nav-item" data-nav="capture">Nova idea</button></li>
         <li><button class="nav-item" data-nav="dashboard">Idees</button></li>
@@ -401,6 +420,12 @@
 
   <div class="app-version" id="app-version" aria-label="Versió de l'app"></div>
 
+  <!-- Indicador petit mentre es carrega o es desa alguna cosa -->
+  <div id="busy-pill" class="busy-pill" role="status" aria-live="polite" hidden>
+    <span class="bulb-loader is-small" data-bulb></span>
+    <span id="busy-pill-text">Carregant…</span>
+  </div>
+
   <div id="toast-stack"></div>
 
   <!-- ============== Llibreries ============== -->
@@ -408,12 +433,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js?v=0.15"></script>
-  <script src="js/config.js?v=0.15"></script>
-  <script src="js/supabaseClient.js?v=0.15"></script>
-  <script src="js/db.js?v=0.15"></script>
-  <script src="js/speech.js?v=0.15"></script>
-  <script src="js/charts.js?v=0.15"></script>
-  <script src="js/app.js?v=0.15"></script>
+  <script src="js/version.js?v=0.16"></script>
+  <script src="js/config.js?v=0.16"></script>
+  <script src="js/supabaseClient.js?v=0.16"></script>
+  <script src="js/db.js?v=0.16"></script>
+  <script src="js/speech.js?v=0.16"></script>
+  <script src="js/charts.js?v=0.16"></script>
+  <script src="js/app.js?v=0.16"></script>
 </body>
 </html>

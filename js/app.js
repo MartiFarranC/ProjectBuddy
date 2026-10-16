@@ -113,6 +113,10 @@
     return title || "Idea sense títol";
   }
 
+  function ideasLabel(n) {
+    return `${n} ${n === 1 ? "idea" : "idees"}`;
+  }
+
   function priorityScore(p) {
     if (!p.questionnaire_done) return -999;
     return (p.desire || 0) + (p.necessity || 0) - (p.difficulty || 0);
@@ -166,6 +170,84 @@
       el.classList.add("leaving");
       setTimeout(() => el.remove(), 200);
     }, 2400);
+  }
+
+  /* ---------------------------------------------------------------------
+   * Càrrega: pantalla inicial i indicador «Carregant… / Desant…»
+   * ------------------------------------------------------------------- */
+
+  function showBootLoader(text) {
+    $("#boot-loader-text").textContent = text || "Encenent les idees…";
+    $("#boot-loader").classList.remove("done");
+  }
+
+  function hideBootLoader() {
+    $("#boot-loader").classList.add("done");
+  }
+
+  // Cada crida a la base de dades passa per aquí. L'indicador només surt si
+  // tarda una mica (així no parpelleja) i es queda un mínim perquè es vegi.
+  const busy = { count: 0, writes: 0, showTimer: null, shownAt: 0, hideTimer: null };
+  const BUSY_DELAY_MS = 250;
+  const BUSY_MIN_MS = 450;
+
+  function updateBusyPill() {
+    const pill = $("#busy-pill");
+    if (busy.count > 0) {
+      clearTimeout(busy.hideTimer);
+      $("#busy-pill-text").textContent = busy.writes > 0 ? "Desant…" : "Carregant…";
+      if (pill.hidden && !busy.showTimer) {
+        busy.showTimer = setTimeout(() => {
+          busy.showTimer = null;
+          if (busy.count > 0) {
+            pill.hidden = false;
+            busy.shownAt = Date.now();
+          }
+        }, BUSY_DELAY_MS);
+      }
+      return;
+    }
+    clearTimeout(busy.showTimer);
+    busy.showTimer = null;
+    if (pill.hidden) return;
+    const wait = Math.max(0, BUSY_MIN_MS - (Date.now() - busy.shownAt));
+    busy.hideTimer = setTimeout(() => {
+      if (busy.count === 0) pill.hidden = true;
+    }, wait);
+  }
+
+  function trackBusy(promise, isWrite) {
+    busy.count++;
+    if (isWrite) busy.writes++;
+    updateBusyPill();
+    const done = () => {
+      busy.count--;
+      if (isWrite) busy.writes--;
+      updateBusyPill();
+    };
+    promise.then(done, done);
+    return promise;
+  }
+
+  function trackDatabaseCalls() {
+    Object.keys(window.PB_DB).forEach((key) => {
+      const fn = window.PB_DB[key];
+      if (typeof fn !== "function") return;
+      window.PB_DB[key] = (...args) => {
+        const result = fn(...args);
+        return result && typeof result.then === "function"
+          ? trackBusy(result, !key.startsWith("list"))
+          : result;
+      };
+    });
+  }
+
+  function fillBulbIcons() {
+    const svg = $("#boot-loader .bulb");
+    $$("[data-bulb]").forEach((el) => {
+      el.innerHTML = "";
+      el.appendChild(svg.cloneNode(true));
+    });
   }
 
   /* ---------------------------------------------------------------------
@@ -871,7 +953,7 @@
       list.sort((a, b) => Number(a.questionnaire_done) - Number(b.questionnaire_done));
     else list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    $("#dash-count").textContent = `${state.projects.length} idea${state.projects.length === 1 ? "" : "s"}`;
+    $("#dash-count").textContent = ideasLabel(state.projects.length);
 
     grid.innerHTML = "";
     empty.hidden = list.length > 0;
@@ -1244,7 +1326,7 @@
       card.innerHTML = `
         <div class="card-top">
           ${g.category ? `<span class="tag"><span class="tag-dot"></span>${escapeHtml(g.category)}</span>` : "<span></span>"}
-          <span class="card-count">${count} idea${count === 1 ? "" : "s"}</span>
+          <span class="card-count">${ideasLabel(count)}</span>
         </div>
         <h3 class="card-title">${escapeHtml(g.title)}</h3>
         <p class="card-excerpt">${escapeHtml(excerpt(g.content, 140))}</p>
@@ -1648,8 +1730,8 @@
       el.style.setProperty("--bubble-color", catColorVar(groupSlot(g)));
       el.innerHTML = `
         <span class="map-bubble-title">${escapeHtml(g.title || "Projecte sense títol")}</span>
-        <span class="map-bubble-count">${count} idea${count === 1 ? "" : "s"}</span>`;
-      el.setAttribute("aria-label", `${g.title}: ${count} idees`);
+        <span class="map-bubble-count">${ideasLabel(count)}</span>`;
+      el.setAttribute("aria-label", `${g.title}: ${ideasLabel(count)}`);
       fitBubbleText(el, ".map-bubble-title", 0.56);
       el.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -1932,16 +2014,20 @@
   }
 
   async function enterApp(user) {
+    showBootLoader();
     $("#view-setup").hidden = true;
     $("#view-auth").hidden = true;
     $("#app").hidden = false;
     $("#user-chip").textContent =
       (user.user_metadata && user.user_metadata.name) || user.email;
 
-    await loadData();
-    renderCaptureChips();
-
-    showView(isMobile() ? "capture" : "dashboard");
+    try {
+      await loadData();
+      renderCaptureChips();
+      showView(isMobile() ? "capture" : "dashboard");
+    } finally {
+      hideBootLoader();
+    }
   }
 
   /* ---------------------------------------------------------------------
@@ -1951,6 +2037,7 @@
   let authMode = "login";
 
   function showAuth() {
+    hideBootLoader();
     state.projects = [];
     state.groups = [];
     state.categories = [];
@@ -2006,18 +2093,18 @@
     try {
       if (authMode === "signup") {
         const name = $("#auth-name").value.trim();
-        const { data, error } = await window.sb.auth.signUp({
+        const { data, error } = await trackBusy(window.sb.auth.signUp({
           email,
           password,
           options: { data: name ? { name } : {} },
-        });
+        }), true);
         if (error) throw error;
         if (!data.session) {
           setAuthMode("login");
           setAuthMessage("Compte creat. Confirma'l des del correu que t'hem enviat i després entra.", true);
         }
       } else {
-        const { error } = await window.sb.auth.signInWithPassword({ email, password });
+        const { error } = await trackBusy(window.sb.auth.signInWithPassword({ email, password }), false);
         if (error) throw error;
       }
     } catch (err) {
@@ -2074,6 +2161,8 @@
 
   async function boot() {
     $("#app-version").textContent = "v" + (window.PB_VERSION || "0.0");
+    fillBulbIcons();
+    trackDatabaseCalls();
     checkForNewVersion();
     wireNav();
     wireCapture();
@@ -2086,6 +2175,7 @@
     $("#sort-select").addEventListener("change", renderDashboard);
 
     if (!window.PB_READY) {
+      hideBootLoader();
       $("#view-setup").hidden = false;
       $("#config-warning").innerHTML =
         "Encara no has connectat Supabase. Obre <code>js/config.js</code> i segueix el README per activar el desat d'idees.";
