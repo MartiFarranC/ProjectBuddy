@@ -571,6 +571,13 @@ textarea.capture-textarea {
   font-weight: 500;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
   white-space: nowrap;
+  max-width: 100%;
+}
+
+/* Els noms de projecte poden ser llargs: que facin salt de línia */
+.chip.chip-group {
+  white-space: normal;
+  text-align: left;
 }
 
 .chip:hover {
@@ -908,6 +915,10 @@ textarea.capture-textarea {
   align-items: start;
 }
 
+.detail-grid > div {
+  min-width: 0; /* sense això, un contingut ample eixampla la columna */
+}
+
 @media (max-width: 860px) {
   .detail-grid {
     grid-template-columns: 1fr;
@@ -935,25 +946,35 @@ textarea.capture-textarea {
   letter-spacing: 0.03em;
 }
 
-#detail-title-input,
-input.detail-title {
+textarea.detail-title {
   font-size: 26px;
   font-weight: 700;
+  line-height: 1.25;
   padding: 6px 8px;
   background: transparent;
   border: 1px solid transparent;
+  resize: none;
+  overflow: hidden;
+  min-height: 0;
 }
 
-#detail-title-input:hover,
-input.detail-title:hover {
+textarea.detail-title:hover {
   border-color: var(--border);
+}
+
+/* Camps que creixen amb el text (l'alçada la posa JS) perquè es llegeixi
+   sencer sense haver de fer scroll a dins */
+textarea.auto-grow {
+  resize: none;
+  overflow: hidden;
 }
 
 #detail-content-input,
 textarea.detail-content {
-  min-height: 120px;
-  font-size: 15px;
-  line-height: 1.6;
+  min-height: 160px;
+  font-size: 16px;
+  line-height: 1.65;
+  margin-top: 8px;
 }
 
 .meta-row {

@@ -95,12 +95,20 @@
   }
 
   // Nom complet d'una idea. El títol automàtic es talla als 60 caràcters amb
-  // «…»; si és el cas i el text comença igual, es mostra la frase sencera.
+  // «…»; si és el cas i el text comença igual, es mostra fins al final de la
+  // primera frase (sense passar de ~120 caràcters, tallant per paraula).
+  const IDEA_NAME_MAX = 120;
   function ideaName(p) {
     const title = (p.title || "").trim();
     if (title.endsWith("…")) {
       const firstLine = (p.content || "").split("\n")[0].trim();
-      if (firstLine.startsWith(title.slice(0, -1).trim())) return firstLine;
+      if (firstLine.startsWith(title.slice(0, -1).trim())) {
+        const sentence = firstLine.match(/^.*?[.!?](?=\s|$)/);
+        const name = sentence ? sentence[0] : firstLine;
+        if (name.length <= IDEA_NAME_MAX) return name;
+        const cut = name.slice(0, IDEA_NAME_MAX);
+        return cut.slice(0, cut.lastIndexOf(" ") > 60 ? cut.lastIndexOf(" ") : IDEA_NAME_MAX).trim() + "…";
+      }
     }
     return title || "Idea sense títol";
   }
@@ -108,6 +116,36 @@
   function priorityScore(p) {
     if (!p.questionnaire_done) return -999;
     return (p.desire || 0) + (p.necessity || 0) - (p.difficulty || 0);
+  }
+
+  // Ajusta l'alçada d'un textarea al seu contingut
+  function autoGrow(el) {
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }
+
+  function autoGrowAll(root) {
+    $$("textarea.auto-grow", root).forEach(autoGrow);
+  }
+
+  function wireAutoGrow() {
+    $$("textarea.auto-grow").forEach((el) => el.addEventListener("input", () => autoGrow(el)));
+    // Al títol, Intro passa a la descripció en lloc de fer un salt de línia
+    $$("textarea.detail-title").forEach((el) =>
+      el.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const next = el.parentElement.querySelector("textarea.auto-grow:not(.detail-title)");
+        if (next) next.focus();
+      })
+    );
+    window.addEventListener(
+      "resize",
+      debounce(() => {
+        if (state.currentView === "detail") autoGrowAll($("#view-detail"));
+        if (state.currentView === "group") autoGrowAll($("#view-group"));
+      }, 150)
+    );
   }
 
   function debounce(fn, ms) {
@@ -920,6 +958,7 @@
     renderDetailStatusChips(p);
     renderDetailGroups(p);
     showView("detail");
+    autoGrowAll($("#view-detail"));
   }
 
   function renderDetailGroups(p) {
@@ -1040,7 +1079,7 @@
     const desire = Number($("#slider-desire").value);
 
     const patch = {
-      title: $("#detail-title-input").value.trim() || "Idea sense títol",
+      title: $("#detail-title-input").value.replace(/\s+/g, " ").trim() || "Idea sense títol",
       content: $("#detail-content-input").value,
       category: p.category || null,
       location: p.location || null,
@@ -1242,6 +1281,7 @@
     renderGroupCategories(g);
     renderGroupIdeas(g);
     showView("group");
+    autoGrowAll($("#view-group"));
   }
 
   function renderGroupCategories(g) {
@@ -1316,7 +1356,7 @@
     if (!g) return;
     try {
       const updated = await window.PB_DB.updateGroup(g.id, {
-        title: $("#group-title-input").value.trim() || "Projecte sense títol",
+        title: $("#group-title-input").value.replace(/\s+/g, " ").trim() || "Projecte sense títol",
         content: $("#group-content-input").value,
         category: g.category || null,
       });
@@ -2038,6 +2078,7 @@
     wireCapture();
     wireDetail();
     wireGroups();
+    wireAutoGrow();
 
     $("#search-input").addEventListener("input", debounce(renderDashboard, 150));
     $("#group-search-input").addEventListener("input", debounce(renderGroups, 150));

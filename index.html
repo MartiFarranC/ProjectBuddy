@@ -8,7 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💡</text></svg>" />
   <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
        nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
-  <link rel="stylesheet" href="css/style.css?v=0.13" />
+  <link rel="stylesheet" href="css/style.css?v=0.14" />
 </head>
 <body>
 
@@ -159,8 +159,8 @@
         <div class="detail-grid">
           <div>
             <div class="panel">
-              <input type="text" id="detail-title-input" placeholder="Títol del projecte" />
-              <textarea id="detail-content-input" placeholder="La idea, explicada..."></textarea>
+              <textarea id="detail-title-input" class="detail-title auto-grow" rows="1" placeholder="Títol de la idea"></textarea>
+              <textarea id="detail-content-input" class="auto-grow" placeholder="La idea, explicada..."></textarea>
               <div class="meta-row">
                 <span id="detail-created-at">—</span>
                 <span aria-hidden="true">·</span>
@@ -297,8 +297,8 @@
           <div>
             <div class="panel">
               <div class="panel-title">Projecte</div>
-              <input type="text" id="group-title-input" class="detail-title" placeholder="Nom del projecte" />
-              <textarea id="group-content-input" class="detail-content" placeholder="De què va el projecte..."></textarea>
+              <textarea id="group-title-input" class="detail-title auto-grow" rows="1" placeholder="Nom del projecte"></textarea>
+              <textarea id="group-content-input" class="detail-content auto-grow" placeholder="De què va el projecte..."></textarea>
               <div class="meta-row">
                 <span id="group-created-at">—</span>
               </div>
@@ -407,12 +407,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js?v=0.13"></script>
-  <script src="js/config.js?v=0.13"></script>
-  <script src="js/supabaseClient.js?v=0.13"></script>
-  <script src="js/db.js?v=0.13"></script>
-  <script src="js/speech.js?v=0.13"></script>
-  <script src="js/charts.js?v=0.13"></script>
-  <script src="js/app.js?v=0.13"></script>
+  <script src="js/version.js?v=0.14"></script>
+  <script src="js/config.js?v=0.14"></script>
+  <script src="js/supabaseClient.js?v=0.14"></script>
+  <script src="js/db.js?v=0.14"></script>
+  <script src="js/speech.js?v=0.14"></script>
+  <script src="js/charts.js?v=0.14"></script>
+  <script src="js/app.js?v=0.14"></script>
 </body>
 </html>
