@@ -1620,26 +1620,39 @@ body.on-map .fab {
     inset 0 0 26px color-mix(in srgb, var(--bubble-color) 30%, transparent);
 }
 
+.map-bubble,
+.map-idea {
+  container-type: size; /* la lletra (cqw) segueix la mida de la bombolla */
+}
+
+/* La mida de lletra la calcula JS (--fit) perquè hi càpiga el nom sencer */
 .map-bubble-title,
-.map-bubble-count,
 .map-idea-title {
-  max-width: 78%;
+  width: 74%;
+  font-size: min(calc(var(--fit, 12) * 1cqw), 22px);
+  line-height: 1.2;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .map-bubble-title {
   font-weight: 700;
-  font-size: var(--bubble-font, 14px);
+}
+
+.map-fit-measurer {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  visibility: hidden;
   line-height: 1.2;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: break-word;
-  hyphens: auto;
+  text-align: center;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-family: var(--font);
 }
 
 .map-bubble-count {
-  font-size: 11px;
+  font-size: clamp(9px, 10cqw, 12px);
   color: var(--text-secondary);
   margin-top: 4px;
 }
@@ -1674,15 +1687,8 @@ body.on-map .fab {
 }
 
 .map-idea-title {
-  font-size: 10.5px;
   font-weight: 600;
-  line-height: 1.2;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  overflow-wrap: break-word;
-  hyphens: auto;
+  font-size: min(calc(var(--fit, 12) * 1cqw), 15px);
 }
 
 .map-idea.is-empty {

@@ -1416,6 +1416,50 @@
     };
   }
 
+  // Tria la mida de lletra perquè el text sencer càpiga dins la bombolla,
+  // sense tallar-lo ni partir paraules. Es mesura en una bombolla de 100px
+  // i es desa com a factor (--fit): el CSS el multiplica per l'amplada real
+  // de la bombolla (unitats cqw), així s'adapta sol quan la bombolla creix.
+  const FIT_REF = 100;
+  let fitMeasurer = null;
+
+  function fitBubbleText(el, selector, heightShare) {
+    const span = $(selector, el);
+    if (!span) return;
+    const fit = measureFit(span.textContent, el.classList.contains("map-bubble"), heightShare);
+    el.style.setProperty("--fit", fit.toFixed(2));
+  }
+
+  // Factor de lletra (px per cada 100px de bombolla) perquè `text` hi càpiga
+  function measureFit(text, isGroup, heightShare) {
+    if (!fitMeasurer) {
+      fitMeasurer = document.createElement("div");
+      fitMeasurer.className = "map-fit-measurer";
+      document.body.appendChild(fitMeasurer);
+    }
+    fitMeasurer.style.fontWeight = isGroup ? "700" : "600";
+    fitMeasurer.style.width = `${FIT_REF * 0.74}px`;
+    fitMeasurer.textContent = text;
+
+    const maxH = FIT_REF * heightShare;
+    const maxFont = isGroup ? 17 : 14;
+    let lo = 4;
+    let hi = maxFont;
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2;
+      fitMeasurer.style.fontSize = `${mid}px`;
+      const fits = fitMeasurer.scrollHeight <= maxH && fitMeasurer.scrollWidth <= FIT_REF * 0.74 + 0.5;
+      if (fits) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  // Mida mínima perquè el text hi surti com a mínim a `minFont` px
+  function sizeForReadable(text, isGroup, heightShare, minFont) {
+    return (minFont / measureFit(text, isGroup, heightShare)) * FIT_REF;
+  }
+
   function startMapLoop() {
     if (map.raf) return;
     map.t0 = performance.now();
@@ -1505,7 +1549,13 @@
     const maxCount = Math.max(1, ...counts);
     const usable = W * (H - MAP_BAR_SPACE - MAP_TOP_SPACE);
     const base = Math.max(70, Math.min(170, Math.sqrt((usable * 0.3) / groups.length)));
-    const sizes = counts.map((c) => Math.min(base * (0.75 + 0.5 * (c / maxCount)), Math.min(W, H) * 0.42));
+    const maxSize = Math.min(W, H) * 0.42;
+    const sizes = counts.map((c, i) => {
+      const bySize = base * (0.75 + 0.5 * (c / maxCount));
+      // Un nom llarg fa la bombolla més gran perquè es pugui llegir sencer
+      const readable = sizeForReadable(groups[i].title || "Projecte sense títol", true, 0.5, 11);
+      return Math.min(Math.max(bySize, readable), maxSize);
+    });
     const positions = layoutBubbles(sizes, W, H);
 
     groups.forEach((g, i) => {
@@ -1517,11 +1567,11 @@
       el.className = "map-bubble";
       el.dataset.id = g.id;
       el.style.setProperty("--bubble-color", catColorVar(groupSlot(g)));
-      el.style.setProperty("--bubble-font", `${Math.max(11, Math.min(17, size / 9)).toFixed(1)}px`);
       el.innerHTML = `
         <span class="map-bubble-title">${escapeHtml(g.title || "Projecte sense títol")}</span>
         <span class="map-bubble-count">${count} idea${count === 1 ? "" : "s"}</span>`;
       el.setAttribute("aria-label", `${g.title}: ${count} idees`);
+      fitBubbleText(el, ".map-bubble-title", 0.5);
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         if (state.mapFocusId === g.id) openGroup(g.id, "map");
@@ -1675,7 +1725,6 @@
         n.tx = cx;
         n.ty = cy;
         n.tsize = Math.min(Math.max(n.home.size, 110 * scale), Math.min(W, H) * 0.3);
-        n.el.style.setProperty("--bubble-font", `${Math.max(11, Math.min(17, n.tsize / 9.5)).toFixed(1)}px`);
       } else {
         n.tx = n.home.x;
         n.ty = n.home.y;
@@ -1689,7 +1738,9 @@
     const hubR = hub.tsize / 2;
     const pts = items.map((p, i) => {
       const seed = nodeSeed((p ? p.id : "buit") + groupId);
-      const size = p ? (64 + Math.min(24, (p.title || "").length * 0.6)) * scale : 96 * scale;
+      const size = p
+        ? Math.min(Math.max(64 * scale, sizeForReadable(p.title || "", false, 0.62, 9.5)), 132 * scale)
+        : 96 * scale;
       const a = -Math.PI / 2 + (i * 2 * Math.PI) / items.length + seed.bend * 0.35;
       const ring = hubR + size / 2 + (45 + seed.breath * 260) * scale; // 0.2..0.45 → distàncies variades
       return { p, seed, size, r: size / 2, x: cx + Math.cos(a) * ring * 1.15, y: cy + Math.sin(a) * ring };
@@ -1707,7 +1758,8 @@
       el.className = "map-idea" + (p ? "" : " is-empty");
       el.style.setProperty("--idea-color", p ? `var(--${statusOf(p).color})` : "var(--muted)");
       el.style.setProperty("--delay", `${(i * 0.04).toFixed(2)}s`);
-      el.innerHTML = `<span class="map-idea-title">${escapeHtml(p ? excerpt(p.title, 48) : "Encara no hi ha idees")}</span>`;
+      el.innerHTML = `<span class="map-idea-title">${escapeHtml(p ? p.title : "Encara no hi ha idees")}</span>`;
+      fitBubbleText(el, ".map-idea-title", 0.62);
       if (p) {
         el.title = p.title;
         el.addEventListener("click", (e) => {
@@ -1754,7 +1806,6 @@
     map.nodes.forEach((n) => {
       if (n.kind !== "group") return;
       n.el.classList.remove("is-focus");
-      n.el.style.setProperty("--bubble-font", `${Math.max(11, Math.min(17, n.home.size / 9)).toFixed(1)}px`);
       n.tx = n.home.x;
       n.ty = n.home.y;
       n.tsize = n.home.size;
