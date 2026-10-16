@@ -969,7 +969,6 @@ textarea.auto-grow {
   overflow: hidden;
 }
 
-#detail-content-input,
 textarea.detail-content {
   min-height: 160px;
   font-size: 16px;
@@ -1570,7 +1569,8 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
-body.on-map .fab {
+body.on-map .fab,
+body.on-detail .fab {
   display: none;
 }
 
@@ -1778,3 +1778,62 @@ body.on-map .fab {
 }
 
 
+
+/* ---------- Fitxa d'idea: el text com a protagonista ---------- */
+
+.idea-reader {
+  margin-bottom: 16px;
+  padding: 28px 32px 24px;
+}
+
+.idea-reader-meta {
+  margin: 0 0 10px 8px;
+  font-size: 12px;
+}
+
+textarea.idea-reader-title {
+  font-size: 20px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+/* Sembla text per llegir, no un camp de formulari; es pot editar igualment */
+textarea.idea-reader-text {
+  display: block;
+  min-height: 140px;
+  margin: 0;
+  padding: 6px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: 19px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+textarea.idea-reader-text:hover {
+  border-color: var(--border-soft);
+}
+
+textarea.idea-reader-text:focus {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.idea-reader .status-chip-row {
+  margin: 18px 0 0 8px;
+}
+
+@media (max-width: 820px) {
+  .idea-reader {
+    padding: 20px 16px 18px;
+  }
+
+  textarea.idea-reader-text {
+    font-size: 17px;
+  }
+
+  textarea.idea-reader-title {
+    font-size: 18px;
+  }
+}

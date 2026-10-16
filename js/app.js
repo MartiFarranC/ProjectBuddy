@@ -179,6 +179,7 @@
     $$(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.nav === name));
     $$(".bottom-nav button").forEach((b) => b.classList.toggle("active", b.dataset.nav === name));
     document.body.classList.toggle("on-map", name === "map");
+    document.body.classList.toggle("on-detail", name === "detail");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     if (name === "capture") {

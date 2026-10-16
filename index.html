@@ -8,7 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💡</text></svg>" />
   <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
        nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
-  <link rel="stylesheet" href="css/style.css?v=0.14" />
+  <link rel="stylesheet" href="css/style.css?v=0.15" />
 </head>
 <body>
 
@@ -156,19 +156,20 @@
       <section id="view-detail" class="view" hidden>
         <button type="button" class="detail-back" id="detail-back-btn">← Tornar</button>
 
+        <!-- El text de la idea és el protagonista: a dalt i a tota l'amplada -->
+        <article class="panel idea-reader">
+          <div class="meta-row idea-reader-meta">
+            <span id="detail-created-at">—</span>
+            <span aria-hidden="true">·</span>
+            <span id="detail-location-display">—</span>
+          </div>
+          <textarea id="detail-title-input" class="detail-title idea-reader-title auto-grow" rows="1" placeholder="Títol de la idea"></textarea>
+          <textarea id="detail-content-input" class="idea-reader-text auto-grow" placeholder="Escriu aquí la idea..."></textarea>
+          <div class="chip-row status-chip-row" id="detail-status"></div>
+        </article>
+
         <div class="detail-grid">
           <div>
-            <div class="panel">
-              <textarea id="detail-title-input" class="detail-title auto-grow" rows="1" placeholder="Títol de la idea"></textarea>
-              <textarea id="detail-content-input" class="auto-grow" placeholder="La idea, explicada..."></textarea>
-              <div class="meta-row">
-                <span id="detail-created-at">—</span>
-                <span aria-hidden="true">·</span>
-                <span id="detail-location-display">—</span>
-              </div>
-              <div class="chip-row status-chip-row" id="detail-status"></div>
-            </div>
-
             <div class="panel">
               <div class="panel-title">Categoria i ubicació</div>
               <div class="field-group" style="margin-top:0">
@@ -407,12 +408,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js?v=0.14"></script>
-  <script src="js/config.js?v=0.14"></script>
-  <script src="js/supabaseClient.js?v=0.14"></script>
-  <script src="js/db.js?v=0.14"></script>
-  <script src="js/speech.js?v=0.14"></script>
-  <script src="js/charts.js?v=0.14"></script>
-  <script src="js/app.js?v=0.14"></script>
+  <script src="js/version.js?v=0.15"></script>
+  <script src="js/config.js?v=0.15"></script>
+  <script src="js/supabaseClient.js?v=0.15"></script>
+  <script src="js/db.js?v=0.15"></script>
+  <script src="js/speech.js?v=0.15"></script>
+  <script src="js/charts.js?v=0.15"></script>
+  <script src="js/app.js?v=0.15"></script>
 </body>
 </html>
