@@ -1567,71 +1567,63 @@ body.on-map .fab {
   pointer-events: none;
 }
 
-.map-links line {
-  stroke: var(--line-color, rgba(255, 255, 255, 0.35));
+.map-links path {
+  fill: none;
+  stroke: var(--line-color, rgba(255, 255, 255, 0.3));
   stroke-width: 1.5;
-  stroke-dasharray: var(--len);
-  stroke-dashoffset: var(--len);
-  animation: map-draw 0.6s var(--ease) forwards;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: map-fade-in 0.8s var(--ease) 0.15s forwards;
+  transition: opacity 0.4s;
 }
 
-@keyframes map-draw {
+.map-links path.leaving {
+  animation: none;
+  opacity: 0 !important;
+}
+
+@keyframes map-fade-in {
   to {
-    stroke-dashoffset: 0;
+    opacity: 1;
   }
 }
 
-/* Bombolla: el posicionament (left/top/mida) el fa JS; la capa interna flota */
-.map-bubble {
+/* Bombolles: posició i mida les mou JS cada fotograma (left/top a 0) */
+.map-bubble,
+.map-idea {
   position: absolute;
-  transform: translate(-50%, -50%);
-  transition: left 0.7s var(--ease), top 0.7s var(--ease), width 0.7s var(--ease),
-    height 0.7s var(--ease), opacity 0.5s var(--ease), filter 0.5s var(--ease);
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--text);
-}
-
-.map-bubble-float {
-  position: absolute;
-  inset: 0;
+  left: 0;
+  top: 0;
   border-radius: 50%;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 10%;
-  background: color-mix(in srgb, var(--bubble-color) 22%, #000);
+  color: var(--text);
+  will-change: transform, width, height;
+  transition: opacity 0.5s var(--ease), filter 0.5s var(--ease), box-shadow 0.3s;
+}
+
+.map-bubble {
+  background: radial-gradient(circle at 35% 30%,
+      color-mix(in srgb, var(--bubble-color) 34%, #000) 0%,
+      color-mix(in srgb, var(--bubble-color) 14%, #000) 70%);
   border: 1.5px solid color-mix(in srgb, var(--bubble-color) 75%, transparent);
-  box-shadow: 0 0 28px color-mix(in srgb, var(--bubble-color) 35%, transparent),
-    inset 0 0 24px color-mix(in srgb, var(--bubble-color) 25%, transparent);
-  animation: map-float var(--float-dur, 8s) ease-in-out var(--float-delay, 0s) infinite alternate;
-  transition: transform 0.2s var(--ease), box-shadow 0.3s;
+  box-shadow: 0 0 30px color-mix(in srgb, var(--bubble-color) 32%, transparent),
+    inset 0 0 26px color-mix(in srgb, var(--bubble-color) 24%, transparent);
 }
 
-.map-bubble:hover .map-bubble-float {
-  box-shadow: 0 0 44px color-mix(in srgb, var(--bubble-color) 55%, transparent),
-    inset 0 0 24px color-mix(in srgb, var(--bubble-color) 30%, transparent);
+.map-bubble:hover {
+  box-shadow: 0 0 46px color-mix(in srgb, var(--bubble-color) 55%, transparent),
+    inset 0 0 26px color-mix(in srgb, var(--bubble-color) 30%, transparent);
 }
 
-@keyframes map-float {
-  0% {
-    translate: 0 0;
-    scale: 1;
-  }
-  33% {
-    translate: var(--dx1) var(--dy1);
-  }
-  66% {
-    translate: var(--dx2) var(--dy2);
-    scale: 1.03;
-  }
-  100% {
-    translate: var(--dx3) var(--dy3);
-    scale: 0.98;
-  }
+.map-bubble-title,
+.map-bubble-count,
+.map-idea-title {
+  max-width: 78%;
 }
 
 .map-bubble-title {
@@ -1642,7 +1634,8 @@ body.on-map .fab {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .map-bubble-count {
@@ -1652,52 +1645,50 @@ body.on-map .fab {
 }
 
 .map-stage.is-focused .map-bubble:not(.is-focus) {
-  opacity: 0.08;
+  opacity: 0.1;
   filter: blur(2px);
   pointer-events: none;
 }
 
-/* Nodes d'idees al voltant de la bombolla oberta */
+/* Idees: bombolles petites del color del seu estat */
 .map-idea {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  max-width: 150px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: #111;
-  border: 1px solid var(--idea-color, var(--border));
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.25;
-  text-align: center;
-  white-space: nowrap;
+  background: radial-gradient(circle at 35% 30%,
+      color-mix(in srgb, var(--idea-color) 26%, #000) 0%,
+      color-mix(in srgb, var(--idea-color) 10%, #000) 75%);
+  border: 1px solid color-mix(in srgb, var(--idea-color) 70%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--idea-color) 22%, transparent);
   overflow: hidden;
-  text-overflow: ellipsis;
   opacity: 0;
-  animation: map-idea-in 0.5s var(--ease) forwards;
+  animation: map-fade-in 0.6s var(--ease) forwards;
   animation-delay: var(--delay, 0s);
 }
 
 .map-idea:hover {
-  background: #1b1b1b;
+  box-shadow: 0 0 30px color-mix(in srgb, var(--idea-color) 45%, transparent);
+}
+
+.map-idea.leaving {
+  animation: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.map-idea-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .map-idea.is-empty {
   border-style: dashed;
   color: var(--muted);
   cursor: default;
-}
-
-@keyframes map-idea-in {
-  from {
-    opacity: 0;
-    scale: 0.6;
-  }
-  to {
-    opacity: 1;
-    scale: 1;
-  }
 }
 
 .map-bar {
@@ -1760,8 +1751,4 @@ body.on-map .fab {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .map-bubble-float {
-    animation: none;
-  }
-}
+

@@ -140,6 +140,7 @@
     if (name === "stats") renderStats();
     if (name === "groups") renderGroups();
     if (name === "map") renderMap();
+    else stopMapLoop();
   }
 
   function updateCaptureLayout() {
@@ -1372,15 +1373,107 @@
 
   /* ---------------------------------------------------------------------
    * Mapa mental: cada projecte és una bombolla que sura; en tocar-ne una,
-   * les seves idees surten al voltant com un diagrama
+   * les seves idees en surten com a bombolles més petites, unides amb
+   * fils corbats. Tot es mou amb una petita simulació (no amb CSS) perquè
+   * els fils segueixin les bombolles mentre suren.
    * ------------------------------------------------------------------- */
 
   const MAP_BAR_SPACE = 70; // espai de baix per als botons del mapa
   const MAP_TOP_SPACE = 56; // espai de dalt pel botó «Crear projecte nou»
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  const map = {
+    nodes: [], // { kind, id, el, x, y, size, tx, ty, tsize, home, seed, line }
+    raf: null,
+    t0: 0,
+    calm: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  };
 
   function mapSize() {
     const stage = $("#map-stage");
     return { W: stage.clientWidth, H: stage.clientHeight };
+  }
+
+  function mapCenter(W, H) {
+    return { cx: W / 2, cy: (MAP_TOP_SPACE + H - MAP_BAR_SPACE) / 2 };
+  }
+
+  // Paràmetres de moviment estables per a cada node (a partir del seu id)
+  function nodeSeed(id) {
+    const h = hashString(id);
+    const r = (k) => (((h >>> (k * 3)) ^ (h >>> (k * 7 + 1))) & 0xff) / 255;
+    return {
+      fx1: 0.13 + r(0) * 0.12,
+      fx2: 0.29 + r(1) * 0.2,
+      fy1: 0.11 + r(2) * 0.12,
+      fy2: 0.31 + r(3) * 0.2,
+      p1: r(4) * Math.PI * 2,
+      p2: r(5) * Math.PI * 2,
+      p3: r(6) * Math.PI * 2,
+      p4: r(7) * Math.PI * 2,
+      bend: (r(8) - 0.5) * 2, // curvatura del fil, -1..1
+      breath: 0.2 + r(9) * 0.25,
+    };
+  }
+
+  function startMapLoop() {
+    if (map.raf) return;
+    map.t0 = performance.now();
+    const tick = (now) => {
+      map.raf = requestAnimationFrame(tick);
+      stepMap((now - map.t0) / 1000);
+    };
+    map.raf = requestAnimationFrame(tick);
+  }
+
+  function stopMapLoop() {
+    if (map.raf) cancelAnimationFrame(map.raf);
+    map.raf = null;
+  }
+
+  // Posició visible d'un node: on va (amb inèrcia) + un balanceig suau
+  function stepMap(t) {
+    const amp = map.calm ? 0 : 1;
+    map.nodes.forEach((n) => {
+      const ease = n.kind === "idea" ? 0.09 : 0.07;
+      n.x += (n.tx - n.x) * ease;
+      n.y += (n.ty - n.y) * ease;
+      n.size += (n.tsize - n.size) * ease;
+      const s = n.seed;
+      const a = amp * Math.min(9, 3 + n.size / 18);
+      n.rx = n.x + a * (Math.sin(t * s.fx1 * 2 * Math.PI + s.p1) * 0.7 + Math.sin(t * s.fx2 * 2 * Math.PI + s.p2) * 0.3);
+      n.ry = n.y + a * (Math.sin(t * s.fy1 * 2 * Math.PI + s.p3) * 0.7 + Math.sin(t * s.fy2 * 2 * Math.PI + s.p4) * 0.3);
+      const breathe = 1 + amp * 0.025 * Math.sin(t * s.breath * 2 * Math.PI + s.p2);
+      const size = Math.max(0, n.size * breathe);
+      n.el.style.width = `${size}px`;
+      n.el.style.height = `${size}px`;
+      n.el.style.transform = `translate3d(${n.rx - size / 2}px, ${n.ry - size / 2}px, 0)`;
+    });
+
+    // Fils corbats del projecte obert a cadascuna de les seves idees
+    const hub = map.nodes.find((n) => n.kind === "group" && n.id === state.mapFocusId);
+    map.nodes.forEach((n) => {
+      if (!n.line) return;
+      if (!hub) {
+        n.line.setAttribute("d", "");
+        return;
+      }
+      const dx = n.rx - hub.rx;
+      const dy = n.ry - hub.ry;
+      const d = Math.hypot(dx, dy) || 1;
+      const ux = dx / d;
+      const uy = dy / d;
+      const x1 = hub.rx + ux * (hub.size / 2);
+      const y1 = hub.ry + uy * (hub.size / 2);
+      const x2 = n.rx - ux * (n.size / 2);
+      const y2 = n.ry - uy * (n.size / 2);
+      const wave = amp * Math.sin(t * 0.35 + n.seed.p1) * 0.08;
+      const k = (n.seed.bend * 0.22 + wave) * d;
+      const mx = (x1 + x2) / 2 - uy * k;
+      const my = (y1 + y2) / 2 + ux * k;
+      n.line.setAttribute("d", `M${x1.toFixed(1)},${y1.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`);
+      n.line.style.opacity = d > (hub.size + n.size) / 2 + 4 ? "" : "0";
+    });
   }
 
   function renderMap() {
@@ -1388,6 +1481,7 @@
     const svg = $("#map-links");
     $$(".map-bubble, .map-idea", stage).forEach((el) => el.remove());
     svg.innerHTML = "";
+    map.nodes = [];
     stage.classList.remove("is-focused");
 
     const empty = $("#map-empty");
@@ -1397,44 +1491,36 @@
       empty.innerHTML = "Per fer servir el mapa, executa un altre cop<br />sql/schema.sql al SQL Editor de Supabase.";
     }
     resetMapBar();
-    if (!groups.length || !state.groupsAvailable) return;
+    if (!groups.length || !state.groupsAvailable) {
+      stopMapLoop();
+      return;
+    }
 
     const { W, H } = mapSize();
+    const { cx, cy } = mapCenter(W, H);
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
 
     // Mida: totes comparteixen l'espai; les que tenen més idees, més grans
     const counts = groups.map((g) => ideasOfGroup(g.id).length);
     const maxCount = Math.max(1, ...counts);
     const usable = W * (H - MAP_BAR_SPACE - MAP_TOP_SPACE);
-    const base = Math.max(70, Math.min(170, Math.sqrt((usable * 0.32) / groups.length)));
-    const sizes = counts.map((c) => Math.min(base * (0.8 + 0.45 * (c / maxCount)), Math.min(W, H) * 0.42));
+    const base = Math.max(70, Math.min(170, Math.sqrt((usable * 0.3) / groups.length)));
+    const sizes = counts.map((c) => Math.min(base * (0.75 + 0.5 * (c / maxCount)), Math.min(W, H) * 0.42));
     const positions = layoutBubbles(sizes, W, H);
 
     groups.forEach((g, i) => {
       const size = sizes[i];
       const { x, y } = positions[i];
-      const h = hashString(g.id);
-      const rnd = (k) => ((h >>> (k * 4)) & 0xff) / 255; // 0..1 estable per bombolla
-      const drift = (k) => `${((rnd(k) - 0.5) * 18).toFixed(1)}px`;
-
+      const count = counts[i];
       const el = document.createElement("button");
       el.type = "button";
       el.className = "map-bubble";
       el.dataset.id = g.id;
-      el._home = { x, y, size };
-      placeBubble(el, x, y, size);
       el.style.setProperty("--bubble-color", catColorVar(groupSlot(g)));
       el.style.setProperty("--bubble-font", `${Math.max(11, Math.min(17, size / 9)).toFixed(1)}px`);
-      el.style.setProperty("--float-dur", `${(6 + rnd(0) * 5).toFixed(2)}s`);
-      el.style.setProperty("--float-delay", `${(-rnd(1) * 8).toFixed(2)}s`);
-      ["dx1", "dy1", "dx2", "dy2", "dx3", "dy3"].forEach((v, k) => el.style.setProperty(`--${v}`, drift(k + 2)));
-
-      const count = counts[i];
       el.innerHTML = `
-        <span class="map-bubble-float">
-          <span class="map-bubble-title">${escapeHtml(g.title || "Projecte sense títol")}</span>
-          <span class="map-bubble-count">${count} idea${count === 1 ? "" : "s"}</span>
-        </span>`;
+        <span class="map-bubble-title">${escapeHtml(g.title || "Projecte sense títol")}</span>
+        <span class="map-bubble-count">${count} idea${count === 1 ? "" : "s"}</span>`;
       el.setAttribute("aria-label", `${g.title}: ${count} idees`);
       el.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -1442,40 +1528,40 @@
         else focusMap(g.id);
       });
       stage.appendChild(el);
+
+      // Neixen totes una mica cap al centre i s'escampen fins al seu lloc
+      map.nodes.push({
+        kind: "group",
+        id: g.id,
+        el,
+        x: cx + (x - cx) * 0.6,
+        y: cy + (y - cy) * 0.6,
+        size: size * 0.5,
+        tx: x,
+        ty: y,
+        tsize: size,
+        home: { x, y, size },
+        seed: nodeSeed(g.id),
+      });
     });
 
+    stepMap(0);
+    startMapLoop();
     if (state.mapFocusId && groups.some((g) => g.id === state.mapFocusId)) focusMap(state.mapFocusId);
     else state.mapFocusId = null;
   }
 
-  function placeBubble(el, x, y, size) {
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
-    el.style.width = `${size}px`;
-    el.style.height = `${size}px`;
-  }
-
-  // Posicions inicials en espiral i després unes quantes passades que
-  // separen les bombolles que es trepitgen i les mantenen dins la pantalla
-  function layoutBubbles(sizes, W, H) {
+  // Separa cercles que es trepitgen i els manté dins la pantalla. `fixed`
+  // són cercles que no es mouen (p.ex. la bombolla del projecte obert);
+  // `pull` és cap on tendeixen (centre i força).
+  function relaxCircles(pts, W, H, { fixed = [], gap = 12, pull = null, iterations = 300 } = {}) {
     const top = MAP_TOP_SPACE;
     const bottom = H - MAP_BAR_SPACE;
-    const cx = W / 2;
-    const cy = (top + bottom) / 2;
-    const rx = W / 2 - 40;
-    const ry = (bottom - top) / 2 - 20;
-    const n = sizes.length;
-    const pts = sizes.map((s, i) => {
-      const r = n === 1 ? 0 : Math.sqrt((i + 0.5) / n) * 0.75;
-      const a = i * 2.39996;
-      return { x: cx + Math.cos(a) * r * rx, y: cy + Math.sin(a) * r * ry, r: s / 2 };
-    });
-
-    const gap = 14;
-    for (let iter = 0; iter < 300; iter++) {
+    const n = pts.length;
+    for (let iter = 0; iter < iterations; iter++) {
       for (let i = 0; i < n; i++) {
+        const a = pts[i];
         for (let j = i + 1; j < n; j++) {
-          const a = pts[i];
           const b = pts[j];
           let dx = b.x - a.x;
           let dy = b.y - a.y;
@@ -1483,8 +1569,8 @@
           const min = a.r + b.r + gap;
           if (d >= min) continue;
           if (d < 0.01) {
-            dx = 1;
-            dy = 0;
+            dx = Math.cos(i + j);
+            dy = Math.sin(i + j);
             d = 1;
           }
           const push = (min - d) / 2;
@@ -1493,15 +1579,41 @@
           b.x += (dx / d) * push;
           b.y += (dy / d) * push;
         }
+        fixed.forEach((f) => {
+          let dx = a.x - f.x;
+          let dy = a.y - f.y;
+          const d = Math.hypot(dx, dy) || 1;
+          const min = a.r + f.r + gap * 2;
+          if (d < min) {
+            a.x = f.x + (dx / d) * min;
+            a.y = f.y + (dy / d) * min;
+          }
+        });
       }
       pts.forEach((p) => {
-        p.x += (cx - p.x) * 0.005;
-        p.y += (cy - p.y) * 0.005;
+        if (pull) {
+          p.x += (pull.x - p.x) * pull.k;
+          p.y += (pull.y - p.y) * pull.k;
+        }
         p.x = Math.min(Math.max(p.x, p.r + 8), W - p.r - 8);
         p.y = Math.min(Math.max(p.y, top + p.r), bottom - p.r);
       });
     }
     return pts;
+  }
+
+  // Projectes: espiral irregular i després es reparteixen sense trepitjar-se
+  function layoutBubbles(sizes, W, H) {
+    const { cx, cy } = mapCenter(W, H);
+    const rx = W / 2 - 40;
+    const ry = (H - MAP_BAR_SPACE - MAP_TOP_SPACE) / 2 - 20;
+    const n = sizes.length;
+    const pts = sizes.map((s, i) => {
+      const r = n === 1 ? 0 : Math.sqrt((i + 0.5) / n) * 0.75;
+      const a = i * 2.39996 + Math.sin(i * 1.7) * 0.4;
+      return { x: cx + Math.cos(a) * r * rx, y: cy + Math.sin(a) * r * ry, r: s / 2 };
+    });
+    return relaxCircles(pts, W, H, { gap: 18, pull: { x: cx, y: cy, k: 0.005 } });
   }
 
   function resetMapBar() {
@@ -1511,83 +1623,122 @@
     $("#map-hint").textContent = "Toca una bombolla per veure'n les idees";
   }
 
+  function removeIdeaNodes(animated) {
+    const ideas = map.nodes.filter((n) => n.kind === "idea");
+    map.nodes = map.nodes.filter((n) => n.kind !== "idea");
+    if (!animated) {
+      ideas.forEach((n) => {
+        n.el.remove();
+        if (n.line) n.line.remove();
+      });
+      return;
+    }
+    // Tornen cap a dins de la bombolla mentre s'esvaeixen
+    const hub = map.nodes.find((n) => n.kind === "group" && n.id === ideas[0]?.groupId);
+    ideas.forEach((n) => {
+      n.el.classList.add("leaving");
+      if (n.line) n.line.classList.add("leaving");
+      const dying = { ...n, kind: "dying", tx: hub ? hub.tx : n.x, ty: hub ? hub.ty : n.y, tsize: 0 };
+      map.nodes.push(dying);
+      setTimeout(() => {
+        map.nodes = map.nodes.filter((x) => x !== dying);
+        n.el.remove();
+        if (n.line) n.line.remove();
+      }, 450);
+    });
+  }
+
   function focusMap(groupId) {
     const stage = $("#map-stage");
     const svg = $("#map-links");
     const g = state.groups.find((x) => x.id === groupId);
     if (!g) return;
+    const changing = state.mapFocusId && state.mapFocusId !== groupId;
     state.mapFocusId = groupId;
-    $$(".map-idea", stage).forEach((el) => el.remove());
-    svg.innerHTML = "";
+    removeIdeaNodes(changing);
     stage.classList.add("is-focused");
 
     const { W, H } = mapSize();
-    const cx = W / 2;
-    const cy = (MAP_TOP_SPACE + H - MAP_BAR_SPACE) / 2;
+    const { cx, cy } = mapCenter(W, H);
     const ideas = ideasOfGroup(groupId);
     const color = catColorVar(groupSlot(g));
+    const scale = Math.max(0.85, Math.min(1, Math.min(W, H) / 760));
 
-    // Torna cada bombolla al seu lloc i porta la triada al centre
-    let focusSize = 120;
-    $$(".map-bubble", stage).forEach((el) => {
-      const home = el._home;
-      if (el.dataset.id === groupId) {
-        focusSize = Math.min(Math.max(home.size, 110), Math.min(W, H) * 0.3);
-        el.classList.add("is-focus");
-        placeBubble(el, cx, cy, focusSize);
+    // El projecte triat va al centre; els altres tornen al seu lloc
+    let hub = null;
+    map.nodes.forEach((n) => {
+      if (n.kind !== "group") return;
+      const isFocus = n.id === groupId;
+      n.el.classList.toggle("is-focus", isFocus);
+      if (isFocus) {
+        hub = n;
+        n.tx = cx;
+        n.ty = cy;
+        n.tsize = Math.min(Math.max(n.home.size, 110 * scale), Math.min(W, H) * 0.3);
+        n.el.style.setProperty("--bubble-font", `${Math.max(11, Math.min(17, n.tsize / 9.5)).toFixed(1)}px`);
       } else {
-        el.classList.remove("is-focus");
-        placeBubble(el, home.x, home.y, home.size);
+        n.tx = n.home.x;
+        n.ty = n.home.y;
+        n.tsize = n.home.size;
       }
     });
+    if (!hub) return;
 
-    // Les idees en una el·lipse al voltant (dos anells si n'hi ha moltes)
-    const rx = Math.max(focusSize / 2 + 70, W / 2 - 90);
-    const ry = Math.max(focusSize / 2 + 50, (H - MAP_BAR_SPACE - MAP_TOP_SPACE) / 2 - 26);
-    const twoRings = ideas.length > 10;
-    const nodes = ideas.length ? ideas : [null];
+    // Idees: bombolles petites escampades al voltant de manera irregular
+    const items = ideas.length ? ideas : [null];
+    const hubR = hub.tsize / 2;
+    const pts = items.map((p, i) => {
+      const seed = nodeSeed((p ? p.id : "buit") + groupId);
+      const size = p ? (64 + Math.min(24, (p.title || "").length * 0.6)) * scale : 96 * scale;
+      const a = -Math.PI / 2 + (i * 2 * Math.PI) / items.length + seed.bend * 0.35;
+      const ring = hubR + size / 2 + (45 + seed.breath * 260) * scale; // 0.2..0.45 → distàncies variades
+      return { p, seed, size, r: size / 2, x: cx + Math.cos(a) * ring * 1.15, y: cy + Math.sin(a) * ring };
+    });
+    relaxCircles(pts, W, H, {
+      fixed: [{ x: cx, y: cy, r: hubR }],
+      gap: 14,
+      iterations: 200,
+    });
 
-    nodes.forEach((p, i) => {
-      const a = -Math.PI / 2 + (i * 2 * Math.PI) / nodes.length;
-      const k = twoRings && i % 2 ? 0.66 : 1;
-      const x = cx + Math.cos(a) * rx * k;
-      const y = p ? cy + Math.sin(a) * ry * k : cy + focusSize / 2 + 60;
-
-      const node = document.createElement("button");
-      node.type = "button";
-      node.className = "map-idea" + (p ? "" : " is-empty");
-      node.style.left = `${x}px`;
-      node.style.top = `${y}px`;
-      node.style.setProperty("--delay", `${(0.3 + i * 0.05).toFixed(2)}s`);
+    pts.forEach((pt, i) => {
+      const p = pt.p;
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "map-idea" + (p ? "" : " is-empty");
+      el.style.setProperty("--idea-color", p ? `var(--${statusOf(p).color})` : "var(--muted)");
+      el.style.setProperty("--delay", `${(i * 0.04).toFixed(2)}s`);
+      el.innerHTML = `<span class="map-idea-title">${escapeHtml(p ? excerpt(p.title, 48) : "Encara no hi ha idees")}</span>`;
       if (p) {
-        node.textContent = excerpt(p.title, 34);
-        node.title = p.title;
-        node.style.setProperty("--idea-color", `var(--${statusOf(p).color})`);
-        node.addEventListener("click", (e) => {
+        el.title = p.title;
+        el.addEventListener("click", (e) => {
           e.stopPropagation();
           openDetail(p.id, "map");
         });
-      } else {
-        node.textContent = "Encara no hi ha idees enllaçades";
       }
-      stage.appendChild(node);
+      stage.appendChild(el);
 
-      if (!p) return;
-      // Línia des de la vora de la bombolla fins a la idea
-      const dx = x - cx;
-      const dy = y - cy;
-      const d = Math.hypot(dx, dy) || 1;
-      const x1 = cx + (dx / d) * (focusSize / 2);
-      const y1 = cy + (dy / d) * (focusSize / 2);
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", x1);
-      line.setAttribute("y1", y1);
-      line.setAttribute("x2", x);
-      line.setAttribute("y2", y);
-      line.style.setProperty("--len", `${Math.hypot(x - x1, y - y1).toFixed(1)}`);
-      line.style.setProperty("--line-color", `color-mix(in srgb, ${color} 60%, transparent)`);
-      line.style.animationDelay = `${(0.15 + i * 0.05).toFixed(2)}s`;
-      svg.appendChild(line);
+      let line = null;
+      if (p) {
+        line = document.createElementNS(SVG_NS, "path");
+        line.style.setProperty("--line-color", `color-mix(in srgb, ${color} 55%, transparent)`);
+        svg.appendChild(line);
+      }
+
+      // Surten de dins la bombolla del projecte
+      map.nodes.push({
+        kind: "idea",
+        id: p ? p.id : "buit",
+        groupId,
+        el,
+        line,
+        x: hub.x,
+        y: hub.y,
+        size: 0,
+        tx: pt.x,
+        ty: pt.y,
+        tsize: pt.size,
+        seed: pt.seed,
+      });
     });
 
     $("#map-back-btn").hidden = false;
@@ -1597,14 +1748,16 @@
 
   function unfocusMap() {
     if (!state.mapFocusId) return;
+    removeIdeaNodes(true);
     state.mapFocusId = null;
-    const stage = $("#map-stage");
-    $$(".map-idea", stage).forEach((el) => el.remove());
-    $("#map-links").innerHTML = "";
-    stage.classList.remove("is-focused");
-    $$(".map-bubble", stage).forEach((el) => {
-      el.classList.remove("is-focus");
-      placeBubble(el, el._home.x, el._home.y, el._home.size);
+    $("#map-stage").classList.remove("is-focused");
+    map.nodes.forEach((n) => {
+      if (n.kind !== "group") return;
+      n.el.classList.remove("is-focus");
+      n.el.style.setProperty("--bubble-font", `${Math.max(11, Math.min(17, n.home.size / 9)).toFixed(1)}px`);
+      n.tx = n.home.x;
+      n.ty = n.home.y;
+      n.tsize = n.home.size;
     });
     resetMapBar();
   }
