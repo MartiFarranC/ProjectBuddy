@@ -844,14 +844,32 @@
         </div>
         <h3 class="card-title">${escapeHtml(p.title)}</h3>
         <p class="card-excerpt">${escapeHtml(excerpt(p.content, 140))}</p>
+        ${cardGroupHtml(p)}
         <div class="card-meta">
           <span>${formatRelative(p.created_at)}${p.location ? " · " + escapeHtml(p.location) : ""}</span>
           ${scores}
         </div>
       `;
       card.addEventListener("click", () => openDetail(p.id));
+      const groupLink = $(".card-group.linked", card);
+      if (groupLink) {
+        groupLink.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openGroup(p.group_id, "dashboard");
+        });
+      }
       grid.appendChild(card);
     });
+  }
+
+  // Línia de la targeta que diu a quin projecte pertany la idea (o que no en té)
+  function cardGroupHtml(p) {
+    if (!state.groupsAvailable) return "";
+    const g = p.group_id && state.groups.find((x) => x.id === p.group_id);
+    if (!g) return `<div class="card-group">Sense projecte</div>`;
+    return `<button type="button" class="card-group linked" style="--group-color:${catColorVar(groupSlot(g))}" title="Obre el projecte">
+        <span class="card-group-dot"></span>${escapeHtml(g.title || "Projecte sense títol")}
+      </button>`;
   }
 
   function escapeHtml(str) {
