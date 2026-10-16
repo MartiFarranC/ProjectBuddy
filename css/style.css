@@ -1480,9 +1480,8 @@ input[type="range"]::-moz-range-thumb {
 .group-idea-title {
   font-size: 14px;
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
+  overflow-wrap: break-word;
 }
 
 .group-idea-meta {
@@ -1670,7 +1669,6 @@ body.on-map .fab {
       color-mix(in srgb, var(--idea-color) 10%, #000) 75%);
   border: 1px solid color-mix(in srgb, var(--idea-color) 70%, transparent);
   box-shadow: 0 0 18px color-mix(in srgb, var(--idea-color) 22%, transparent);
-  overflow: hidden;
   opacity: 0;
   animation: map-fade-in 0.6s var(--ease) forwards;
   animation-delay: var(--delay, 0s);

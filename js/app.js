@@ -94,6 +94,17 @@
     return excerpt(firstLine, 60) || "Idea sense títol";
   }
 
+  // Nom complet d'una idea. El títol automàtic es talla als 60 caràcters amb
+  // «…»; si és el cas i el text comença igual, es mostra la frase sencera.
+  function ideaName(p) {
+    const title = (p.title || "").trim();
+    if (title.endsWith("…")) {
+      const firstLine = (p.content || "").split("\n")[0].trim();
+      if (firstLine.startsWith(title.slice(0, -1).trim())) return firstLine;
+    }
+    return title || "Idea sense títol";
+  }
+
   function priorityScore(p) {
     if (!p.questionnaire_done) return -999;
     return (p.desire || 0) + (p.necessity || 0) - (p.difficulty || 0);
@@ -843,7 +854,7 @@
           ${p.category ? `<span class="tag"><span class="tag-dot"></span>${p.category}</span>` : "<span></span>"}
           <span class="status-badge status-${status.value}">${status.label}</span>
         </div>
-        <h3 class="card-title">${escapeHtml(p.title)}</h3>
+        <h3 class="card-title">${escapeHtml(ideaName(p))}</h3>
         <p class="card-excerpt">${escapeHtml(excerpt(p.content, 140))}</p>
         ${cardGroupHtml(p)}
         <div class="card-meta">
@@ -1252,7 +1263,7 @@
       row.style.setProperty("--card-color", catColorVar(window.PB_DB.categorySlot(state.categories, p.category)));
       row.innerHTML = `
         <div class="group-idea-main">
-          <div class="group-idea-title">${escapeHtml(p.title)}</div>
+          <div class="group-idea-title">${escapeHtml(ideaName(p))}</div>
           <div class="group-idea-meta">${statusOf(p).label} · ${formatRelative(p.created_at)}</div>
         </div>
         <button type="button" class="group-idea-unlink" title="Desenllaça del projecte" aria-label="Desenllaça del projecte">✕</button>
@@ -1369,6 +1380,13 @@
         if (state.currentView === "map") renderMap();
       }, 200)
     );
+    // Les mides de lletra es calculen amb la font carregada: si arriba tard,
+    // es tornen a calcular perquè cap nom quedi retallat
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        if (state.currentView === "map") renderMap();
+      });
+    }
   }
 
   /* ---------------------------------------------------------------------
@@ -1739,7 +1757,7 @@
     const pts = items.map((p, i) => {
       const seed = nodeSeed((p ? p.id : "buit") + groupId);
       const size = p
-        ? Math.min(Math.max(64 * scale, sizeForReadable(p.title || "", false, 0.62, 9.5)), 132 * scale)
+        ? Math.min(Math.max(64 * scale, sizeForReadable(ideaName(p), false, 0.62, 9.5)), 160 * scale)
         : 96 * scale;
       const a = -Math.PI / 2 + (i * 2 * Math.PI) / items.length + seed.bend * 0.35;
       const ring = hubR + size / 2 + (45 + seed.breath * 260) * scale; // 0.2..0.45 → distàncies variades
@@ -1758,10 +1776,10 @@
       el.className = "map-idea" + (p ? "" : " is-empty");
       el.style.setProperty("--idea-color", p ? `var(--${statusOf(p).color})` : "var(--muted)");
       el.style.setProperty("--delay", `${(i * 0.04).toFixed(2)}s`);
-      el.innerHTML = `<span class="map-idea-title">${escapeHtml(p ? p.title : "Encara no hi ha idees")}</span>`;
+      el.innerHTML = `<span class="map-idea-title">${escapeHtml(p ? ideaName(p) : "Encara no hi ha idees")}</span>`;
       fitBubbleText(el, ".map-idea-title", 0.62);
       if (p) {
-        el.title = p.title;
+        el.title = ideaName(p);
         el.addEventListener("click", (e) => {
           e.stopPropagation();
           openDetail(p.id, "map");
