@@ -58,6 +58,42 @@ window.PB_DB = (function () {
     if (error) throw error;
   }
 
+  // Projectes (taula project_groups): cadascun reuneix diverses idees
+  async function listGroups() {
+    const { data, error } = await window.sb
+      .from("project_groups")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  }
+
+  async function createGroup(partial) {
+    const { data, error } = await window.sb
+      .from("project_groups")
+      .insert([partial])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function updateGroup(id, patch) {
+    const { data, error } = await window.sb
+      .from("project_groups")
+      .update(patch)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function deleteGroup(id) {
+    const { error } = await window.sb.from("project_groups").delete().eq("id", id);
+    if (error) throw error;
+  }
+
   async function listCategories() {
     const { data, error } = await window.sb
       .from("categories")
@@ -118,6 +154,10 @@ window.PB_DB = (function () {
     createProject,
     updateProject,
     deleteProject,
+    listGroups,
+    createGroup,
+    updateGroup,
+    deleteGroup,
     listCategories,
     addCategory,
     listLocations,

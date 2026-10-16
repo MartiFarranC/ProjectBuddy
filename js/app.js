@@ -3,13 +3,22 @@
   "use strict";
 
   const state = {
-    projects: [],
+    projects: [], // les idees (la taula es diu "projects" per motius històrics)
+    groups: [], // els projectes, que agrupen idees
+    groupsAvailable: true, // fals si encara no s'ha executat el SQL nou
     categories: [],
     locations: [],
     currentView: null,
     currentProjectId: null,
     captureCategory: null,
     captureLocation: null,
+    captureGroup: null,
+    captureFromGroup: null,
+    detailReturn: "dashboard",
+    currentGroupId: null,
+    groupAutosaveTimer: null,
+    newGroupCategory: null,
+    mapFocusId: null,
     micSession: null,
     micRecording: false,
     micStream: null,
@@ -115,10 +124,12 @@
    * ------------------------------------------------------------------- */
 
   function showView(name) {
+    if (state.currentView !== name) state.previousView = state.currentView;
     state.currentView = name;
     $$(".view").forEach((v) => (v.hidden = v.id !== `view-${name}`));
     $$(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.nav === name));
     $$(".bottom-nav button").forEach((b) => b.classList.toggle("active", b.dataset.nav === name));
+    document.body.classList.toggle("on-map", name === "map");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     if (name === "capture") {
@@ -127,6 +138,8 @@
     }
     if (name === "dashboard") renderDashboard();
     if (name === "stats") renderStats();
+    if (name === "groups") renderGroups();
+    if (name === "map") renderMap();
   }
 
   function updateCaptureLayout() {
@@ -145,8 +158,12 @@
       resetCaptureForm();
       showView("capture");
     });
+    $("#new-group-btn").addEventListener("click", openNewGroup);
     $("#capture-go-dashboard").addEventListener("click", () => showView("dashboard"));
-    $("#detail-back-btn").addEventListener("click", () => showView("dashboard"));
+    $("#detail-back-btn").addEventListener("click", () => {
+      if (state.detailReturn === "group" && state.currentGroupId) openGroup(state.currentGroupId);
+      else showView(state.detailReturn || "dashboard");
+    });
   }
 
   /* ---------------------------------------------------------------------
@@ -209,12 +226,55 @@
       renderCaptureChips();
     });
     locWrap.appendChild(other);
+
+    renderGroupChips($("#capture-groups"), state.captureGroup, (id) => {
+      state.captureGroup = id;
+      renderCaptureChips();
+    });
+  }
+
+  // Xips per triar a quin projecte va una idea. `onSelect` rep l'id triat
+  // (o null si es desmarca); "+ Nou projecte" en crea un i el selecciona.
+  function renderGroupChips(wrap, selectedId, onSelect) {
+    wrap.innerHTML = "";
+    if (!state.groupsAvailable) {
+      wrap.innerHTML = `<span class="mic-hint">Actualitza la base de dades (sql/schema.sql) per fer servir projectes</span>`;
+      return;
+    }
+    state.groups.forEach((g) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip chip-group";
+      chip.textContent = g.title || "Projecte sense títol";
+      if (selectedId === g.id) chip.classList.add("selected");
+      chip.addEventListener("click", () => onSelect(selectedId === g.id ? null : g.id));
+      wrap.appendChild(chip);
+    });
+    const newGroup = document.createElement("button");
+    newGroup.type = "button";
+    newGroup.className = "chip";
+    newGroup.textContent = "+ Nou projecte";
+    newGroup.addEventListener("click", async () => {
+      const name = prompt("Nom del projecte nou:");
+      if (!name || !name.trim()) return;
+      try {
+        const created = await window.PB_DB.createGroup({ title: name.trim() });
+        state.groups.unshift(created);
+        onSelect(created.id);
+      } catch (err) {
+        console.error(err);
+        toast("No s'ha pogut crear el projecte");
+      }
+    });
+    wrap.appendChild(newGroup);
   }
 
   function resetCaptureForm() {
     $("#idea-textarea").value = "";
     state.captureCategory = null;
     state.captureLocation = null;
+    state.captureGroup = null;
+    state.captureFromGroup = null;
     $("#mic-hint").textContent = "Prem el micro i parla en català";
     $("#mic-hint").classList.remove("live");
     renderCaptureChips();
@@ -223,54 +283,56 @@
   function wireCapture() {
     renderCaptureChips();
 
-    const micBtn = $("#mic-btn");
-    const hint = $("#mic-hint");
-
-    if (!window.PB_SPEECH.supported) {
-      micBtn.disabled = true;
-      hint.textContent = "El teu navegador no permet dictar (prova Chrome o Safari)";
-    } else {
-      micBtn.addEventListener("click", () => {
-        if (state.micRecording) {
-          state.micSession.stop();
-          return;
-        }
-        const textarea = $("#idea-textarea");
-        state.micSession = window.PB_SPEECH.createSession({
-          onInterim: (text) => {
-            if (!text) return;
-            hint.textContent = text;
-            hint.classList.add("live");
-          },
-          onFinalChunk: (text) => {
-            textarea.value = (textarea.value + " " + text).trim();
-            hint.textContent = "Escoltant, torna a parlar quan vulguis";
-          },
-          onEnd: () => {
-            state.micRecording = false;
-            micBtn.classList.remove("recording");
-            hint.classList.remove("live");
-            hint.textContent = "Dicta en català";
-            stopMicVoiceMeter();
-          },
-          onError: (err) => {
-            state.micRecording = false;
-            micBtn.classList.remove("recording");
-            hint.textContent = "No t'he sentit bé, torna-ho a provar";
-            stopMicVoiceMeter();
-          },
-        });
-        state.micSession.start();
-        state.micRecording = true;
-        micBtn.classList.add("recording");
-        hint.textContent = "Escoltant...";
-        startMicVoiceMeter();
-      });
-    }
+    wireDictation($("#mic-btn"), $("#mic-hint"), $("#idea-textarea"));
 
     $("#save-idea-btn").addEventListener("click", saveNewIdea);
 
     wireQuickCapture();
+  }
+
+  // Botó de micro que dicta dins d'un textarea (formulari d'idea i de projecte)
+  function wireDictation(micBtn, hint, textarea) {
+    const idleText = "Dicta en català";
+    if (!window.PB_SPEECH.supported) {
+      micBtn.disabled = true;
+      hint.textContent = "El teu navegador no permet dictar (prova Chrome o Safari)";
+      return;
+    }
+    micBtn.addEventListener("click", () => {
+      if (state.micRecording) {
+        state.micSession.stop();
+        return;
+      }
+      state.micSession = window.PB_SPEECH.createSession({
+        onInterim: (text) => {
+          if (!text) return;
+          hint.textContent = text;
+          hint.classList.add("live");
+        },
+        onFinalChunk: (text) => {
+          textarea.value = (textarea.value + " " + text).trim();
+          hint.textContent = "Escoltant, torna a parlar quan vulguis";
+        },
+        onEnd: () => {
+          state.micRecording = false;
+          micBtn.classList.remove("recording");
+          hint.classList.remove("live");
+          hint.textContent = idleText;
+          stopMicVoiceMeter();
+        },
+        onError: () => {
+          state.micRecording = false;
+          micBtn.classList.remove("recording");
+          hint.textContent = "No t'he sentit bé, torna-ho a provar";
+          stopMicVoiceMeter();
+        },
+      });
+      state.micSession.start();
+      state.micRecording = true;
+      micBtn.classList.add("recording");
+      hint.textContent = "Escoltant...";
+      startMicVoiceMeter();
+    });
   }
 
   /* ---------------------------------------------------------------------
@@ -688,15 +750,19 @@
     btn.disabled = true;
 
     try {
-      await window.PB_DB.createProject({
+      const idea = {
         title: autoTitle(content),
         content,
         category: state.captureCategory,
         location: state.captureLocation,
-      });
+      };
+      if (state.captureGroup) idea.group_id = state.captureGroup;
+      await window.PB_DB.createProject(idea);
       state.projects = await window.PB_DB.listProjects();
       toast("Idea desada");
+      const backToGroup = state.captureFromGroup;
       resetCaptureForm();
+      if (backToGroup) openGroup(backToGroup);
     } catch (err) {
       console.error(err);
       toast("No s'ha pogut desar la idea");
@@ -798,7 +864,8 @@
    * Detall + qüestionari
    * ------------------------------------------------------------------- */
 
-  function openDetail(id) {
+  function openDetail(id, returnView) {
+    state.detailReturn = returnView || "dashboard";
     state.currentProjectId = id;
     const p = state.projects.find((x) => x.id === id);
     if (!p) return;
@@ -821,7 +888,29 @@
 
     renderDetailChips(p);
     renderDetailStatusChips(p);
+    renderDetailGroups(p);
     showView("detail");
+  }
+
+  function renderDetailGroups(p) {
+    renderGroupChips($("#detail-groups"), p.group_id || null, (id) => linkIdea(p, id, () => renderDetailGroups(p)));
+  }
+
+  // Enllaça (o desenllaça, amb null) una idea a un projecte i ho desa de seguida
+  async function linkIdea(p, groupId, after) {
+    const previous = p.group_id || null;
+    p.group_id = groupId;
+    if (after) after();
+    try {
+      await window.PB_DB.updateProject(p.id, { group_id: groupId });
+      const g = state.groups.find((x) => x.id === groupId);
+      toast(groupId ? `Enllaçada a «${g ? g.title : "projecte"}»` : "Idea desenllaçada");
+    } catch (err) {
+      console.error(err);
+      p.group_id = previous;
+      if (after) after();
+      toast("No s'ha pogut enllaçar la idea");
+    }
   }
 
   function renderDetailStatusChips(p) {
@@ -965,17 +1054,541 @@
     $("#external-detail-input").addEventListener("input", scheduleAutosave);
 
     $("#delete-project-btn").addEventListener("click", async () => {
-      if (!confirm("Segur que vols eliminar aquest projecte? No es pot desfer.")) return;
+      if (!confirm("Segur que vols eliminar aquesta idea? No es pot desfer.")) return;
       try {
         await window.PB_DB.deleteProject(state.currentProjectId);
         state.projects = state.projects.filter((p) => p.id !== state.currentProjectId);
-        toast("Projecte eliminat");
+        toast("Idea eliminada");
         showView("dashboard");
       } catch (err) {
         console.error(err);
         toast("No s'ha pogut eliminar");
       }
     });
+  }
+
+  /* ---------------------------------------------------------------------
+   * Projectes (agrupen idees)
+   * ------------------------------------------------------------------- */
+
+  function groupTitle(content) {
+    const t = autoTitle(content);
+    return t === "Idea sense títol" ? "Projecte sense títol" : t;
+  }
+
+  function ideasOfGroup(groupId) {
+    return state.projects
+      .filter((p) => p.group_id === groupId)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+
+  function statusOf(p) {
+    return window.PB_DB.STATUSES.find((s) => s.value === (p.status || "idea")) || window.PB_DB.STATUSES[0];
+  }
+
+  function openNewGroup() {
+    if (!state.groupsAvailable) {
+      toast("Per crear projectes, primer executa sql/schema.sql al SQL Editor de Supabase");
+      return;
+    }
+    $("#group-textarea").value = "";
+    state.newGroupCategory = null;
+    renderNewGroupCategories();
+    showView("group-new");
+    if (!isMobile()) $("#group-textarea").focus();
+  }
+
+  function renderNewGroupCategories() {
+    const wrap = $("#group-new-categories");
+    wrap.innerHTML = "";
+    state.categories.forEach((c) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.textContent = c.name;
+      if (state.newGroupCategory === c.name) chip.classList.add("selected");
+      chip.addEventListener("click", () => {
+        state.newGroupCategory = state.newGroupCategory === c.name ? null : c.name;
+        renderNewGroupCategories();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  async function saveNewGroup() {
+    const content = $("#group-textarea").value.trim();
+    if (!content) {
+      toast("Explica de què va el projecte");
+      return;
+    }
+    const btn = $("#save-group-btn");
+    btn.disabled = true;
+    try {
+      const created = await window.PB_DB.createGroup({
+        title: groupTitle(content),
+        content,
+        category: state.newGroupCategory,
+      });
+      state.groups.unshift(created);
+      toast("Projecte creat");
+      openGroup(created.id, "groups");
+    } catch (err) {
+      console.error(err);
+      toast("No s'ha pogut crear el projecte");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function renderGroups() {
+    const grid = $("#group-grid");
+    const empty = $("#groups-empty");
+    const n = state.groups.length;
+    $("#groups-count").textContent = `${n} projecte${n === 1 ? "" : "s"}`;
+    grid.innerHTML = "";
+    empty.hidden = n > 0;
+    if (!state.groupsAvailable) {
+      empty.hidden = false;
+      empty.textContent =
+        "Per fer servir projectes, executa un altre cop sql/schema.sql al SQL Editor de Supabase.";
+      return;
+    }
+
+    state.groups.forEach((g) => {
+      const count = ideasOfGroup(g.id).length;
+      const card = document.createElement("div");
+      card.className = "project-card";
+      card.style.setProperty("--card-color", catColorVar(groupSlot(g)));
+      card.innerHTML = `
+        <div class="card-top">
+          ${g.category ? `<span class="tag"><span class="tag-dot"></span>${escapeHtml(g.category)}</span>` : "<span></span>"}
+          <span class="card-count">${count} idea${count === 1 ? "" : "s"}</span>
+        </div>
+        <h3 class="card-title">${escapeHtml(g.title)}</h3>
+        <p class="card-excerpt">${escapeHtml(excerpt(g.content, 140))}</p>
+        <div class="card-meta"><span>${formatRelative(g.created_at)}</span></div>
+      `;
+      card.addEventListener("click", () => openGroup(g.id, "groups"));
+      grid.appendChild(card);
+    });
+  }
+
+  // Sense categoria, cada projecte agafa igualment un color estable
+  function groupSlot(g) {
+    if (g.category) return window.PB_DB.categorySlot(state.categories, g.category);
+    return (hashString(g.id) % 8) + 1;
+  }
+
+  function hashString(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function openGroup(id, returnView) {
+    const g = state.groups.find((x) => x.id === id);
+    if (!g) return;
+    state.currentGroupId = id;
+    if (returnView) state.groupReturn = returnView;
+
+    $("#group-title-input").value = g.title || "";
+    $("#group-content-input").value = g.content || "";
+    $("#group-created-at").textContent = "Creat el " + formatDateTime(g.created_at);
+    renderGroupCategories(g);
+    renderGroupIdeas(g);
+    showView("group");
+  }
+
+  function renderGroupCategories(g) {
+    const wrap = $("#group-categories");
+    wrap.innerHTML = "";
+    state.categories.forEach((c) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.textContent = c.name;
+      if (g.category === c.name) chip.classList.add("selected");
+      chip.addEventListener("click", () => {
+        g.category = g.category === c.name ? null : c.name;
+        renderGroupCategories(g);
+        scheduleGroupAutosave();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  function renderGroupIdeas(g) {
+    const list = $("#group-ideas");
+    const ideas = ideasOfGroup(g.id);
+    list.innerHTML = "";
+    $("#group-ideas-empty").hidden = ideas.length > 0;
+    $("#group-ideas-count").textContent = ideas.length ? `· ${ideas.length}` : "";
+
+    ideas.forEach((p) => {
+      const row = document.createElement("div");
+      row.className = "group-idea";
+      row.style.setProperty("--card-color", catColorVar(window.PB_DB.categorySlot(state.categories, p.category)));
+      row.innerHTML = `
+        <div class="group-idea-main">
+          <div class="group-idea-title">${escapeHtml(p.title)}</div>
+          <div class="group-idea-meta">${statusOf(p).label} · ${formatRelative(p.created_at)}</div>
+        </div>
+        <button type="button" class="group-idea-unlink" title="Desenllaça del projecte" aria-label="Desenllaça del projecte">✕</button>
+      `;
+      row.addEventListener("click", () => openDetail(p.id, "group"));
+      $(".group-idea-unlink", row).addEventListener("click", (e) => {
+        e.stopPropagation();
+        linkIdea(p, null, () => renderGroupIdeas(g));
+      });
+      list.appendChild(row);
+    });
+
+    // Desplegable per enllaçar idees que ja existeixen
+    const select = $("#group-add-idea");
+    const others = state.projects.filter((p) => p.group_id !== g.id);
+    select.innerHTML = "";
+    const first = document.createElement("option");
+    first.value = "";
+    first.textContent = others.length ? "+ Enllaça una idea que ja tens…" : "No hi ha més idees per enllaçar";
+    select.appendChild(first);
+    select.disabled = !others.length;
+    others.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      const inOther = p.group_id && state.groups.find((x) => x.id === p.group_id);
+      opt.textContent = excerpt(p.title, 60) + (inOther ? ` (ara a «${excerpt(inOther.title, 24)}»)` : "");
+      select.appendChild(opt);
+    });
+  }
+
+  function scheduleGroupAutosave() {
+    clearTimeout(state.groupAutosaveTimer);
+    state.groupAutosaveTimer = setTimeout(saveGroupChanges, 500);
+  }
+
+  async function saveGroupChanges() {
+    const g = state.groups.find((x) => x.id === state.currentGroupId);
+    if (!g) return;
+    try {
+      const updated = await window.PB_DB.updateGroup(g.id, {
+        title: $("#group-title-input").value.trim() || "Projecte sense títol",
+        content: $("#group-content-input").value,
+        category: g.category || null,
+      });
+      Object.assign(g, updated);
+      const ind = $("#group-autosave-indicator");
+      ind.classList.add("show");
+      setTimeout(() => ind.classList.remove("show"), 1400);
+    } catch (err) {
+      console.error(err);
+      toast("No s'ha pogut desar el canvi");
+    }
+  }
+
+  function wireGroups() {
+    wireDictation($("#group-mic-btn"), $("#group-mic-hint"), $("#group-textarea"));
+    $("#save-group-btn").addEventListener("click", saveNewGroup);
+    $("#group-new-cancel").addEventListener("click", () => {
+      const prev = state.previousView;
+      showView(["capture", "dashboard", "groups", "map", "stats"].includes(prev) ? prev : "groups");
+    });
+
+    $("#group-back-btn").addEventListener("click", () => showView(state.groupReturn || "groups"));
+    $("#group-title-input").addEventListener("input", scheduleGroupAutosave);
+    $("#group-content-input").addEventListener("input", scheduleGroupAutosave);
+
+    $("#group-add-idea").addEventListener("change", (e) => {
+      const g = state.groups.find((x) => x.id === state.currentGroupId);
+      const p = state.projects.find((x) => x.id === e.target.value);
+      if (!g || !p) return;
+      linkIdea(p, g.id, () => renderGroupIdeas(g));
+    });
+
+    $("#group-new-idea-btn").addEventListener("click", () => {
+      const groupId = state.currentGroupId;
+      resetCaptureForm();
+      showView("capture");
+      state.manualFormOpen = true; // el formulari, no la gravació ràpida
+      updateCaptureLayout();
+      state.captureGroup = groupId;
+      state.captureFromGroup = groupId;
+      renderCaptureChips();
+    });
+
+    $("#delete-group-btn").addEventListener("click", async () => {
+      const id = state.currentGroupId;
+      if (!confirm("Segur que vols eliminar aquest projecte? Les idees es queden, només es desenllacen.")) return;
+      try {
+        await window.PB_DB.deleteGroup(id);
+        state.groups = state.groups.filter((g) => g.id !== id);
+        state.projects.forEach((p) => {
+          if (p.group_id === id) p.group_id = null;
+        });
+        if (state.mapFocusId === id) state.mapFocusId = null;
+        toast("Projecte eliminat");
+        showView("groups");
+      } catch (err) {
+        console.error(err);
+        toast("No s'ha pogut eliminar");
+      }
+    });
+
+    // Mapa mental
+    $("#map-back-btn").addEventListener("click", unfocusMap);
+    $("#map-open-btn").addEventListener("click", () => {
+      if (state.mapFocusId) openGroup(state.mapFocusId, "map");
+    });
+    $("#map-stage").addEventListener("click", (e) => {
+      if (e.target.id === "map-stage" || e.target.id === "map-links") unfocusMap();
+    });
+    window.addEventListener(
+      "resize",
+      debounce(() => {
+        if (state.currentView === "map") renderMap();
+      }, 200)
+    );
+  }
+
+  /* ---------------------------------------------------------------------
+   * Mapa mental: cada projecte és una bombolla que sura; en tocar-ne una,
+   * les seves idees surten al voltant com un diagrama
+   * ------------------------------------------------------------------- */
+
+  const MAP_BAR_SPACE = 70; // espai de baix per als botons del mapa
+  const MAP_TOP_SPACE = 56; // espai de dalt pel botó «Crear projecte nou»
+
+  function mapSize() {
+    const stage = $("#map-stage");
+    return { W: stage.clientWidth, H: stage.clientHeight };
+  }
+
+  function renderMap() {
+    const stage = $("#map-stage");
+    const svg = $("#map-links");
+    $$(".map-bubble, .map-idea", stage).forEach((el) => el.remove());
+    svg.innerHTML = "";
+    stage.classList.remove("is-focused");
+
+    const empty = $("#map-empty");
+    const groups = state.groups;
+    empty.hidden = groups.length > 0 && state.groupsAvailable;
+    if (!state.groupsAvailable) {
+      empty.innerHTML = "Per fer servir el mapa, executa un altre cop<br />sql/schema.sql al SQL Editor de Supabase.";
+    }
+    resetMapBar();
+    if (!groups.length || !state.groupsAvailable) return;
+
+    const { W, H } = mapSize();
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+    // Mida: totes comparteixen l'espai; les que tenen més idees, més grans
+    const counts = groups.map((g) => ideasOfGroup(g.id).length);
+    const maxCount = Math.max(1, ...counts);
+    const usable = W * (H - MAP_BAR_SPACE - MAP_TOP_SPACE);
+    const base = Math.max(70, Math.min(170, Math.sqrt((usable * 0.32) / groups.length)));
+    const sizes = counts.map((c) => Math.min(base * (0.8 + 0.45 * (c / maxCount)), Math.min(W, H) * 0.42));
+    const positions = layoutBubbles(sizes, W, H);
+
+    groups.forEach((g, i) => {
+      const size = sizes[i];
+      const { x, y } = positions[i];
+      const h = hashString(g.id);
+      const rnd = (k) => ((h >>> (k * 4)) & 0xff) / 255; // 0..1 estable per bombolla
+      const drift = (k) => `${((rnd(k) - 0.5) * 18).toFixed(1)}px`;
+
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "map-bubble";
+      el.dataset.id = g.id;
+      el._home = { x, y, size };
+      placeBubble(el, x, y, size);
+      el.style.setProperty("--bubble-color", catColorVar(groupSlot(g)));
+      el.style.setProperty("--bubble-font", `${Math.max(11, Math.min(17, size / 9)).toFixed(1)}px`);
+      el.style.setProperty("--float-dur", `${(6 + rnd(0) * 5).toFixed(2)}s`);
+      el.style.setProperty("--float-delay", `${(-rnd(1) * 8).toFixed(2)}s`);
+      ["dx1", "dy1", "dx2", "dy2", "dx3", "dy3"].forEach((v, k) => el.style.setProperty(`--${v}`, drift(k + 2)));
+
+      const count = counts[i];
+      el.innerHTML = `
+        <span class="map-bubble-float">
+          <span class="map-bubble-title">${escapeHtml(g.title || "Projecte sense títol")}</span>
+          <span class="map-bubble-count">${count} idea${count === 1 ? "" : "s"}</span>
+        </span>`;
+      el.setAttribute("aria-label", `${g.title}: ${count} idees`);
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (state.mapFocusId === g.id) openGroup(g.id, "map");
+        else focusMap(g.id);
+      });
+      stage.appendChild(el);
+    });
+
+    if (state.mapFocusId && groups.some((g) => g.id === state.mapFocusId)) focusMap(state.mapFocusId);
+    else state.mapFocusId = null;
+  }
+
+  function placeBubble(el, x, y, size) {
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+  }
+
+  // Posicions inicials en espiral i després unes quantes passades que
+  // separen les bombolles que es trepitgen i les mantenen dins la pantalla
+  function layoutBubbles(sizes, W, H) {
+    const top = MAP_TOP_SPACE;
+    const bottom = H - MAP_BAR_SPACE;
+    const cx = W / 2;
+    const cy = (top + bottom) / 2;
+    const rx = W / 2 - 40;
+    const ry = (bottom - top) / 2 - 20;
+    const n = sizes.length;
+    const pts = sizes.map((s, i) => {
+      const r = n === 1 ? 0 : Math.sqrt((i + 0.5) / n) * 0.75;
+      const a = i * 2.39996;
+      return { x: cx + Math.cos(a) * r * rx, y: cy + Math.sin(a) * r * ry, r: s / 2 };
+    });
+
+    const gap = 14;
+    for (let iter = 0; iter < 300; iter++) {
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const a = pts[i];
+          const b = pts[j];
+          let dx = b.x - a.x;
+          let dy = b.y - a.y;
+          let d = Math.hypot(dx, dy);
+          const min = a.r + b.r + gap;
+          if (d >= min) continue;
+          if (d < 0.01) {
+            dx = 1;
+            dy = 0;
+            d = 1;
+          }
+          const push = (min - d) / 2;
+          a.x -= (dx / d) * push;
+          a.y -= (dy / d) * push;
+          b.x += (dx / d) * push;
+          b.y += (dy / d) * push;
+        }
+      }
+      pts.forEach((p) => {
+        p.x += (cx - p.x) * 0.005;
+        p.y += (cy - p.y) * 0.005;
+        p.x = Math.min(Math.max(p.x, p.r + 8), W - p.r - 8);
+        p.y = Math.min(Math.max(p.y, top + p.r), bottom - p.r);
+      });
+    }
+    return pts;
+  }
+
+  function resetMapBar() {
+    $("#map-back-btn").hidden = true;
+    $("#map-open-btn").hidden = true;
+    $("#map-hint").hidden = false;
+    $("#map-hint").textContent = "Toca una bombolla per veure'n les idees";
+  }
+
+  function focusMap(groupId) {
+    const stage = $("#map-stage");
+    const svg = $("#map-links");
+    const g = state.groups.find((x) => x.id === groupId);
+    if (!g) return;
+    state.mapFocusId = groupId;
+    $$(".map-idea", stage).forEach((el) => el.remove());
+    svg.innerHTML = "";
+    stage.classList.add("is-focused");
+
+    const { W, H } = mapSize();
+    const cx = W / 2;
+    const cy = (MAP_TOP_SPACE + H - MAP_BAR_SPACE) / 2;
+    const ideas = ideasOfGroup(groupId);
+    const color = catColorVar(groupSlot(g));
+
+    // Torna cada bombolla al seu lloc i porta la triada al centre
+    let focusSize = 120;
+    $$(".map-bubble", stage).forEach((el) => {
+      const home = el._home;
+      if (el.dataset.id === groupId) {
+        focusSize = Math.min(Math.max(home.size, 110), Math.min(W, H) * 0.3);
+        el.classList.add("is-focus");
+        placeBubble(el, cx, cy, focusSize);
+      } else {
+        el.classList.remove("is-focus");
+        placeBubble(el, home.x, home.y, home.size);
+      }
+    });
+
+    // Les idees en una el·lipse al voltant (dos anells si n'hi ha moltes)
+    const rx = Math.max(focusSize / 2 + 70, W / 2 - 90);
+    const ry = Math.max(focusSize / 2 + 50, (H - MAP_BAR_SPACE - MAP_TOP_SPACE) / 2 - 26);
+    const twoRings = ideas.length > 10;
+    const nodes = ideas.length ? ideas : [null];
+
+    nodes.forEach((p, i) => {
+      const a = -Math.PI / 2 + (i * 2 * Math.PI) / nodes.length;
+      const k = twoRings && i % 2 ? 0.66 : 1;
+      const x = cx + Math.cos(a) * rx * k;
+      const y = p ? cy + Math.sin(a) * ry * k : cy + focusSize / 2 + 60;
+
+      const node = document.createElement("button");
+      node.type = "button";
+      node.className = "map-idea" + (p ? "" : " is-empty");
+      node.style.left = `${x}px`;
+      node.style.top = `${y}px`;
+      node.style.setProperty("--delay", `${(0.3 + i * 0.05).toFixed(2)}s`);
+      if (p) {
+        node.textContent = excerpt(p.title, 34);
+        node.title = p.title;
+        node.style.setProperty("--idea-color", `var(--${statusOf(p).color})`);
+        node.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openDetail(p.id, "map");
+        });
+      } else {
+        node.textContent = "Encara no hi ha idees enllaçades";
+      }
+      stage.appendChild(node);
+
+      if (!p) return;
+      // Línia des de la vora de la bombolla fins a la idea
+      const dx = x - cx;
+      const dy = y - cy;
+      const d = Math.hypot(dx, dy) || 1;
+      const x1 = cx + (dx / d) * (focusSize / 2);
+      const y1 = cy + (dy / d) * (focusSize / 2);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", x1);
+      line.setAttribute("y1", y1);
+      line.setAttribute("x2", x);
+      line.setAttribute("y2", y);
+      line.style.setProperty("--len", `${Math.hypot(x - x1, y - y1).toFixed(1)}`);
+      line.style.setProperty("--line-color", `color-mix(in srgb, ${color} 60%, transparent)`);
+      line.style.animationDelay = `${(0.15 + i * 0.05).toFixed(2)}s`;
+      svg.appendChild(line);
+    });
+
+    $("#map-back-btn").hidden = false;
+    $("#map-open-btn").hidden = false;
+    $("#map-hint").hidden = true;
+  }
+
+  function unfocusMap() {
+    if (!state.mapFocusId) return;
+    state.mapFocusId = null;
+    const stage = $("#map-stage");
+    $$(".map-idea", stage).forEach((el) => el.remove());
+    $("#map-links").innerHTML = "";
+    stage.classList.remove("is-focused");
+    $$(".map-bubble", stage).forEach((el) => {
+      el.classList.remove("is-focus");
+      placeBubble(el, el._home.x, el._home.y, el._home.size);
+    });
+    resetMapBar();
   }
 
   /* ---------------------------------------------------------------------
@@ -1004,6 +1617,17 @@
     state.projects = projects;
     state.categories = categories;
     state.locations = locations;
+
+    // Si la base de dades encara no té la taula de projectes, la resta de
+    // l'app ha de continuar funcionant igual
+    try {
+      state.groups = await window.PB_DB.listGroups();
+      state.groupsAvailable = true;
+    } catch (err) {
+      console.error(err);
+      state.groups = [];
+      state.groupsAvailable = false;
+    }
   }
 
   async function enterApp(user) {
@@ -1027,8 +1651,10 @@
 
   function showAuth() {
     state.projects = [];
+    state.groups = [];
     state.categories = [];
     state.locations = [];
+    state.mapFocusId = null;
     $("#app").hidden = true;
     $("#view-auth").hidden = false;
     $("#auth-password").value = "";
@@ -1151,6 +1777,7 @@
     wireNav();
     wireCapture();
     wireDetail();
+    wireGroups();
 
     $("#search-input").addEventListener("input", debounce(renderDashboard, 150));
     $("#sort-select").addEventListener("change", renderDashboard);

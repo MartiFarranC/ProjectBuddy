@@ -120,3 +120,39 @@ create policy "locations: own rows" on public.locations
 create index if not exists idx_projects_created on public.projects (created_at desc);
 create index if not exists idx_projects_category on public.projects (category);
 create index if not exists idx_projects_user on public.projects (user_id);
+
+-- ---------------------------------------------------------------------------
+-- Projectes: agrupen idees
+-- ---------------------------------------------------------------------------
+-- (Per motius històrics la taula "projects" de dalt guarda les idees; els
+-- projectes de veritat, que reuneixen diverses idees, viuen en aquesta.)
+create table if not exists public.project_groups (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
+  title text not null default '',
+  content text not null default '',
+  category text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_project_groups_updated_at on public.project_groups;
+create trigger trg_project_groups_updated_at
+  before update on public.project_groups
+  for each row execute function public.set_updated_at();
+
+-- Cada idea pot estar enllaçada a un projecte. Si s'esborra el projecte, les
+-- idees es queden, només es desenllacen.
+alter table public.projects add column if not exists group_id uuid references public.project_groups (id) on delete set null;
+create index if not exists idx_projects_group on public.projects (group_id);
+create index if not exists idx_project_groups_user on public.project_groups (user_id);
+
+alter table public.project_groups enable row level security;
+
+drop policy if exists "project_groups: own rows" on public.project_groups;
+create policy "project_groups: own rows" on public.project_groups
+  for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- Fa que l'API vegi de seguida la taula i la columna noves
+notify pgrst, 'reload schema';

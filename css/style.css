@@ -177,7 +177,7 @@ button {
 main#content {
   flex: 1;
   min-width: 0;
-  padding: 40px 40px 120px;
+  padding: 64px 40px 120px;
   max-width: 900px;
   margin: 0 auto;
 }
@@ -492,7 +492,8 @@ label {
   font-size: 14px;
 }
 
-#idea-textarea {
+#idea-textarea,
+textarea.capture-textarea {
   min-height: 140px;
   resize: vertical;
   font-size: 16px;
@@ -896,7 +897,8 @@ label {
   letter-spacing: 0.03em;
 }
 
-#detail-title-input {
+#detail-title-input,
+input.detail-title {
   font-size: 26px;
   font-weight: 700;
   padding: 6px 8px;
@@ -904,11 +906,13 @@ label {
   border: 1px solid transparent;
 }
 
-#detail-title-input:hover {
+#detail-title-input:hover,
+input.detail-title:hover {
   border-color: var(--border);
 }
 
-#detail-content-input {
+#detail-content-input,
+textarea.detail-content {
   min-height: 120px;
   font-size: 15px;
   line-height: 1.6;
@@ -1207,7 +1211,7 @@ input[type="range"]::-moz-range-thumb {
 
 .app-version {
   position: fixed;
-  top: calc(8px + env(safe-area-inset-top));
+  top: calc(52px + env(safe-area-inset-top));
   right: 16px;
   font-size: 11px;
   font-weight: 500;
@@ -1277,7 +1281,7 @@ input[type="range"]::-moz-range-thumb {
   }
 
   main#content {
-    padding: 20px 16px 100px;
+    padding: 60px 16px 100px;
   }
 
   .bottom-nav {
@@ -1303,7 +1307,7 @@ input[type="range"]::-moz-range-thumb {
     gap: 3px;
     font-size: 11px;
     font-weight: 600;
-    padding: 6px 14px;
+    padding: 6px 8px;
     border-radius: var(--radius-sm);
     transition: color 0.15s;
   }
@@ -1358,4 +1362,368 @@ input[type="range"]::-moz-range-thumb {
   height: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+}
+
+/* ---------- Botó fix «Crear projecte nou» ---------- */
+
+.new-group-btn {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 16px;
+  z-index: 60;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.new-group-btn:hover {
+  border-color: var(--accent);
+  background: var(--surface-3);
+}
+
+.panel-hint {
+  font-size: 13px;
+  color: var(--muted);
+  margin: -8px 0 12px;
+}
+
+.dash-header-action {
+  margin-left: auto;
+  align-self: center;
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.chip.chip-group.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------- Projecte: llistat d'idees ---------- */
+
+.group-ideas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-idea {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-left: 2px solid var(--card-color, var(--border));
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.group-idea:hover {
+  background: var(--surface-3);
+  border-color: var(--border);
+  border-left-color: var(--card-color, var(--border));
+}
+
+.group-idea-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.group-idea-title {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-idea-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.group-idea-unlink {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 16px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.group-idea-unlink:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.group-ideas-empty {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 8px 0 4px;
+}
+
+.group-add-idea {
+  margin-top: 14px;
+}
+
+.group-new-idea-btn {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.card-count {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* ---------- Mapa mental ---------- */
+
+.map-view {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 220px;
+  background: #000;
+  z-index: 45;
+  overflow: hidden;
+  animation: map-in 0.4s var(--ease);
+}
+
+@keyframes map-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+body.on-map .fab {
+  display: none;
+}
+
+.map-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.map-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.map-links line {
+  stroke: var(--line-color, rgba(255, 255, 255, 0.35));
+  stroke-width: 1.5;
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  animation: map-draw 0.6s var(--ease) forwards;
+}
+
+@keyframes map-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Bombolla: el posicionament (left/top/mida) el fa JS; la capa interna flota */
+.map-bubble {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  transition: left 0.7s var(--ease), top 0.7s var(--ease), width 0.7s var(--ease),
+    height 0.7s var(--ease), opacity 0.5s var(--ease), filter 0.5s var(--ease);
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text);
+}
+
+.map-bubble-float {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 10%;
+  background: color-mix(in srgb, var(--bubble-color) 22%, #000);
+  border: 1.5px solid color-mix(in srgb, var(--bubble-color) 75%, transparent);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--bubble-color) 35%, transparent),
+    inset 0 0 24px color-mix(in srgb, var(--bubble-color) 25%, transparent);
+  animation: map-float var(--float-dur, 8s) ease-in-out var(--float-delay, 0s) infinite alternate;
+  transition: transform 0.2s var(--ease), box-shadow 0.3s;
+}
+
+.map-bubble:hover .map-bubble-float {
+  box-shadow: 0 0 44px color-mix(in srgb, var(--bubble-color) 55%, transparent),
+    inset 0 0 24px color-mix(in srgb, var(--bubble-color) 30%, transparent);
+}
+
+@keyframes map-float {
+  0% {
+    translate: 0 0;
+    scale: 1;
+  }
+  33% {
+    translate: var(--dx1) var(--dy1);
+  }
+  66% {
+    translate: var(--dx2) var(--dy2);
+    scale: 1.03;
+  }
+  100% {
+    translate: var(--dx3) var(--dy3);
+    scale: 0.98;
+  }
+}
+
+.map-bubble-title {
+  font-weight: 700;
+  font-size: var(--bubble-font, 14px);
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.map-bubble-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.map-stage.is-focused .map-bubble:not(.is-focus) {
+  opacity: 0.08;
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+/* Nodes d'idees al voltant de la bombolla oberta */
+.map-idea {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  max-width: 150px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #111;
+  border: 1px solid var(--idea-color, var(--border));
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  animation: map-idea-in 0.5s var(--ease) forwards;
+  animation-delay: var(--delay, 0s);
+}
+
+.map-idea:hover {
+  background: #1b1b1b;
+}
+
+.map-idea.is-empty {
+  border-style: dashed;
+  color: var(--muted);
+  cursor: default;
+}
+
+@keyframes map-idea-in {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+.map-bar {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  pointer-events: none;
+}
+
+.map-bar > * {
+  pointer-events: auto;
+}
+
+.map-hint {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.map-back {
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.map-back:hover {
+  color: var(--text);
+}
+
+.map-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 20px;
+}
+
+@media (max-width: 820px) {
+  .map-view {
+    left: 0;
+    bottom: calc(62px + env(safe-area-inset-bottom));
+  }
+
+  .map-bar {
+    bottom: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-bubble-float {
+    animation: none;
+  }
 }

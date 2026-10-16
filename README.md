@@ -14,6 +14,12 @@ sense servidor propi).
 - **Data, hora i ubicació** de quan vas tenir la idea (la ubicació és un
   desplegable de xips: llocs predeterminats + els que tu afegeixis).
 - **Categories** personalitzables per organitzar els projectes.
+- **Projectes**: el botó «Crear projecte nou» (sempre a dalt a la dreta) crea
+  un projecte com si fos una idea (text o dictat). Cada idea es pot enllaçar a
+  un projecte en crear-la o després des de la seva fitxa, i dins de cada
+  projecte veus el llistat de les seves idees.
+- **Mapa mental**: fons negre amb una bombolla flotant per projecte; en tocar-ne
+  una, les seves idees surten al voltant com un diagrama.
 - **Estadístiques**: idees per setmana, per categoria, per ubicació, i una
   "matriu de prioritat" (necessitat vs. ganes, mida = com de fàcil) per ajudar-te
   a triar què fer primer.
@@ -30,7 +36,9 @@ i des de l'ordinador.
    provisionar-se).
 2. Al menú lateral, ves a **SQL Editor** → **New query**, enganxa tot el
    contingut de [`sql/schema.sql`](sql/schema.sql) i prem **Run**. Això crea les
-   taules `projects`, `categories`, `locations`.
+   taules `projects` (les idees), `project_groups` (els projectes),
+   `categories` i `locations`. Quan una versió nova de l'app afegeix taules o
+   columnes, torna a executar el fitxer sencer: no esborra res.
 3. Ves a **Project Settings → API** i copia:
    - `Project URL`
    - `anon public` key

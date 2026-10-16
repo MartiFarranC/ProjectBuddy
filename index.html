@@ -8,7 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💡</text></svg>" />
   <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
        nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
-  <link rel="stylesheet" href="css/style.css?v=0.6" />
+  <link rel="stylesheet" href="css/style.css?v=0.7" />
 </head>
 <body>
 
@@ -57,7 +57,9 @@
       <div class="brand">ProjectBuddy</div>
       <ul class="nav-list">
         <li><button class="nav-item" data-nav="capture">Nova idea</button></li>
-        <li><button class="nav-item" data-nav="dashboard">Projectes</button></li>
+        <li><button class="nav-item" data-nav="dashboard">Idees</button></li>
+        <li><button class="nav-item" data-nav="groups">Projectes</button></li>
+        <li><button class="nav-item" data-nav="map">Mapa mental</button></li>
         <li><button class="nav-item" data-nav="stats">Estadístiques</button></li>
       </ul>
       <div class="sidebar-footer">
@@ -111,8 +113,13 @@
             <div class="chip-row" id="capture-locations"></div>
           </div>
 
+          <div class="field-group">
+            <div class="field-label">Enllaça-la a un projecte (opcional)</div>
+            <div class="chip-row" id="capture-groups"></div>
+          </div>
+
           <div class="capture-actions">
-            <button type="button" class="btn btn-ghost" id="capture-go-dashboard">Veure projectes</button>
+            <button type="button" class="btn btn-ghost" id="capture-go-dashboard">Veure idees</button>
             <button type="button" class="btn btn-primary" id="save-idea-btn">Desa</button>
           </div>
         </div>
@@ -121,7 +128,7 @@
       <!-- ---- Dashboard ---- -->
       <section id="view-dashboard" class="view" hidden>
         <div class="dash-header">
-          <h2 class="dash-title">Projectes</h2>
+          <h2 class="dash-title">Idees</h2>
           <span class="dash-count" id="dash-count"></span>
         </div>
 
@@ -175,7 +182,13 @@
             </div>
 
             <div class="panel">
-              <button class="btn btn-danger" id="delete-project-btn">Eliminar projecte</button>
+              <div class="panel-title">Projecte</div>
+              <p class="panel-hint" id="detail-group-hint">Enllaça aquesta idea a un projecte per veure-la a dins.</p>
+              <div class="chip-row" id="detail-groups"></div>
+            </div>
+
+            <div class="panel">
+              <button class="btn btn-danger" id="delete-project-btn">Eliminar idea</button>
             </div>
           </div>
 
@@ -226,6 +239,104 @@
         </div>
       </section>
 
+      <!-- ---- Projecte nou ---- -->
+      <section id="view-group-new" class="view" hidden>
+        <div class="capture-card">
+          <h2 class="capture-heading">Projecte nou</h2>
+          <p class="capture-sub">Explica de què va. Després hi podràs enllaçar idees.</p>
+
+          <textarea id="group-textarea" class="capture-textarea" placeholder="De què va el projecte?"></textarea>
+
+          <div class="capture-toolbar">
+            <button type="button" id="group-mic-btn" class="mic-btn" title="Dictar en català" aria-label="Dictar en català">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <rect x="6" y="1.5" width="4" height="8" rx="2" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M3.5 8a4.5 4.5 0 0 0 9 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                <path d="M8 12.5v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <span id="group-mic-hint" class="mic-hint">Dicta en català</span>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">Categoria (opcional)</div>
+            <div class="chip-row" id="group-new-categories"></div>
+          </div>
+
+          <div class="capture-actions">
+            <button type="button" class="btn btn-ghost" id="group-new-cancel">Cancel·la</button>
+            <button type="button" class="btn btn-primary" id="save-group-btn">Crea el projecte</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- Llistat de projectes ---- -->
+      <section id="view-groups" class="view" hidden>
+        <div class="dash-header">
+          <h2 class="dash-title">Projectes</h2>
+          <span class="dash-count" id="groups-count"></span>
+          <button type="button" class="btn btn-ghost dash-header-action" data-nav="map">Mapa mental</button>
+        </div>
+        <div id="group-grid" class="project-grid"></div>
+        <div id="groups-empty" class="empty-state" hidden>
+          Encara no tens cap projecte. Crea'n un amb «Crear projecte nou», a dalt a la dreta.
+        </div>
+      </section>
+
+      <!-- ---- Detall d'un projecte ---- -->
+      <section id="view-group" class="view" hidden>
+        <button type="button" class="detail-back" id="group-back-btn">← Tornar</button>
+
+        <div class="detail-grid">
+          <div>
+            <div class="panel">
+              <div class="panel-title">Projecte</div>
+              <input type="text" id="group-title-input" class="detail-title" placeholder="Nom del projecte" />
+              <textarea id="group-content-input" class="detail-content" placeholder="De què va el projecte..."></textarea>
+              <div class="meta-row">
+                <span id="group-created-at">—</span>
+              </div>
+              <div class="autosave-indicator" id="group-autosave-indicator">Desat</div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-title">Categoria</div>
+              <div class="chip-row" id="group-categories"></div>
+            </div>
+
+            <div class="panel">
+              <button class="btn btn-danger" id="delete-group-btn">Eliminar projecte</button>
+              <p class="panel-hint" style="margin:10px 0 0">Les idees no s'esborren: només es desenllacen del projecte.</p>
+            </div>
+          </div>
+
+          <div>
+            <div class="panel">
+              <div class="panel-title">Idees del projecte <span id="group-ideas-count"></span></div>
+              <div class="group-ideas" id="group-ideas"></div>
+              <div class="group-ideas-empty" id="group-ideas-empty" hidden>Encara no hi ha cap idea enllaçada.</div>
+              <select id="group-add-idea" class="group-add-idea"></select>
+              <button type="button" class="btn btn-ghost group-new-idea-btn" id="group-new-idea-btn">+ Nova idea per a aquest projecte</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- Mapa mental ---- -->
+      <section id="view-map" class="view map-view" hidden>
+        <div class="map-stage" id="map-stage">
+          <svg class="map-links" id="map-links" aria-hidden="true"></svg>
+        </div>
+        <div class="map-bar">
+          <button type="button" class="map-back" id="map-back-btn" hidden>← Tots els projectes</button>
+          <span class="map-hint" id="map-hint">Toca una bombolla per veure'n les idees</span>
+          <button type="button" class="btn btn-primary map-open" id="map-open-btn" hidden>Obre el projecte</button>
+        </div>
+        <div class="map-empty" id="map-empty" hidden>
+          Encara no tens cap projecte.<br />Crea'n un amb «Crear projecte nou».
+        </div>
+      </section>
+
       <!-- ---- Estadístiques ---- -->
       <section id="view-stats" class="view" hidden>
         <div class="dash-header">
@@ -269,12 +380,16 @@
 
     <nav class="bottom-nav">
       <button data-nav="capture" class="active">Nova</button>
-      <button data-nav="dashboard">Projectes</button>
+      <button data-nav="dashboard">Idees</button>
+      <button data-nav="groups">Projectes</button>
+      <button data-nav="map">Mapa</button>
       <button data-nav="stats">Stats</button>
       <button type="button" id="logout-btn-mobile">Surt</button>
     </nav>
 
     <button class="fab" id="fab-new-idea" title="Nova idea">+</button>
+
+    <button type="button" class="new-group-btn" id="new-group-btn">+ Crear projecte nou</button>
   </div>
 
   <div class="app-version" id="app-version" aria-label="Versió de l'app"></div>
@@ -286,12 +401,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js?v=0.6"></script>
-  <script src="js/config.js?v=0.6"></script>
-  <script src="js/supabaseClient.js?v=0.6"></script>
-  <script src="js/db.js?v=0.6"></script>
-  <script src="js/speech.js?v=0.6"></script>
-  <script src="js/charts.js?v=0.6"></script>
-  <script src="js/app.js?v=0.6"></script>
+  <script src="js/version.js?v=0.7"></script>
+  <script src="js/config.js?v=0.7"></script>
+  <script src="js/supabaseClient.js?v=0.7"></script>
+  <script src="js/db.js?v=0.7"></script>
+  <script src="js/speech.js?v=0.7"></script>
+  <script src="js/charts.js?v=0.7"></script>
+  <script src="js/app.js?v=0.7"></script>
 </body>
 </html>
