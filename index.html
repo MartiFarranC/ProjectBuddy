@@ -6,12 +6,12 @@
   <title>ProjectBuddy · les teves idees</title>
   <meta name="description" content="Gestor personal d'idees i projectes futurs" />
   <!-- Icona de la pestanya: la bombeta del logotip (SVG, i PNG per als navegadors i mòbils que no en llegeixen) -->
-  <link rel="icon" type="image/svg+xml" href="img/favicon.svg?v=0.25" />
-  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=0.25" />
-  <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=0.25" />
+  <link rel="icon" type="image/svg+xml" href="img/favicon.svg?v=0.26" />
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=0.26" />
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=0.26" />
   <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
        nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
-  <link rel="stylesheet" href="css/style.css?v=0.25" />
+  <link rel="stylesheet" href="css/style.css?v=0.26" />
 </head>
 <body>
 
@@ -101,10 +101,20 @@
             <span class="quick-record-pulse" aria-hidden="true"></span>
             <canvas id="quick-wave-canvas" class="quick-wave-canvas" width="220" height="220" aria-hidden="true"></canvas>
             <span class="quick-record-icon bulb-lit" data-bulb aria-hidden="true"></span>
+            <span class="quick-check-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
           </button>
           <p class="quick-record-hint" id="quick-record-hint">Mantén premut per gravar una idea</p>
           <button type="button" class="quick-cancel-btn" id="quick-cancel-btn" aria-label="Cancel·la la gravació">✕ Cancel·la</button>
+          <button type="button" class="quick-review-cancel" id="quick-review-cancel" hidden>✕ Cancel·la</button>
           <button type="button" class="quick-manual-link" id="quick-manual-link">o escriu-la a mà</button>
+
+          <!-- Després de gravar: el text es pot revisar i editar abans de desar -->
+          <div class="quick-preview-wrap" id="quick-preview-wrap" hidden>
+            <label class="field-label" for="quick-preview">Transcripció · la pots editar</label>
+            <textarea id="quick-preview" class="quick-preview auto-grow" rows="2" placeholder="Escriu aquí la idea…"></textarea>
+          </div>
         </div>
 
         <div class="capture-card" id="capture-card">
@@ -490,13 +500,13 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js?v=0.25"></script>
-  <script src="js/config.js?v=0.25"></script>
-  <script src="js/supabaseClient.js?v=0.25"></script>
-  <script src="js/db.js?v=0.25"></script>
-  <script src="js/speech.js?v=0.25"></script>
-  <script src="js/detect.js?v=0.25"></script>
-  <script src="js/charts.js?v=0.25"></script>
-  <script src="js/app.js?v=0.25"></script>
+  <script src="js/version.js?v=0.26"></script>
+  <script src="js/config.js?v=0.26"></script>
+  <script src="js/supabaseClient.js?v=0.26"></script>
+  <script src="js/db.js?v=0.26"></script>
+  <script src="js/speech.js?v=0.26"></script>
+  <script src="js/detect.js?v=0.26"></script>
+  <script src="js/charts.js?v=0.26"></script>
+  <script src="js/app.js?v=0.26"></script>
 </body>
 </html>

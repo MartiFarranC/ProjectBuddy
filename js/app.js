@@ -46,6 +46,9 @@
     quickLocationPromise: null,
     quickOverCancel: false,
     quickMoveHandler: null,
+    quickReviewing: false, // després de gravar: revisant el text abans de desar
+    quickReviewReady: false,
+    quickReviewSince: 0,
   };
 
   const $ = (sel, root) => (root || document).querySelector(sel);
@@ -548,6 +551,7 @@
 
     btn.addEventListener("pointerdown", (e) => {
       e.preventDefault();
+      if (state.quickReviewing) return; // ara el botó és el ✓ de desar
       if (state.quickArmTimer || state.quickRecording) return;
       state.quickPointerId = e.pointerId;
       state.quickArmTimer = setTimeout(() => {
@@ -575,6 +579,18 @@
           stopQuickRecording(evt !== "pointercancel" && !state.quickOverCancel);
         }
       });
+    });
+
+    // En revisió, tocar la bombolla (el ✓) desa la idea. S'ignora el clic que
+    // arriba just en deixar anar el dit, que és el final de la gravació.
+    btn.addEventListener("click", () => {
+      if (!state.quickReviewing || !state.quickReviewReady) return;
+      if (Date.now() - state.quickReviewSince < 500) return;
+      saveQuickReview();
+    });
+    $("#quick-review-cancel").addEventListener("click", () => {
+      exitQuickReview();
+      flashQuickText("Idea descartada");
     });
 
     // Al ratolí (sense captura implícita de punter) deixar anar sobre el
@@ -609,6 +625,7 @@
     const btn = $("#quick-record-btn");
     const hint = $("#quick-record-hint");
 
+    exitQuickReview();
     state.quickTranscript = "";
     state.quickInterim = "";
     state.quickSpeechError = null;
@@ -659,6 +676,7 @@
   // Mentre el reconeixement es prepara: «Espera…» i cap ona (el que diguis
   // encara es perdria)
   function setQuickWaiting() {
+    clearTimeout(quickHintTimer);
     const btn = $("#quick-record-btn");
     btn.classList.remove("recording");
     btn.classList.add("warming");
@@ -755,34 +773,95 @@
       return;
     }
 
+    enterQuickReview();
+  }
+
+  // En deixar anar: es para el dictat i, quan arriba el text final, la
+  // bombolla es converteix en un ✓. Res es desa fins que el toques.
+  function enterQuickReview() {
+    const btn = $("#quick-record-btn");
     state.quickPendingSave = true;
-    btn.classList.add("saving");
-    hint.textContent = "Desant...";
+    state.quickReviewing = true;
+    state.quickReviewReady = false;
+    state.quickReviewSince = Date.now();
+    $("#quick-capture").classList.add("is-reviewing");
+    btn.classList.add("finishing");
+    btn.setAttribute("aria-label", "Desa la idea");
+    $("#quick-record-hint").textContent = "Acabant de transcriure…";
+    $("#quick-review-cancel").hidden = false;
     if (state.quickSpeechSession && !state.quickSpeechEnded) {
       state.quickSpeechSession.stop();
-      // Si el navegador no arriba a avisar del final, desa igualment
+      // Si el navegador no arriba a avisar del final, seguim igualment
       setTimeout(finishQuickSave, 2500);
     } else {
       finishQuickSave();
     }
   }
 
-  async function finishQuickSave() {
+  function exitQuickReview() {
+    const btn = $("#quick-record-btn");
+    state.quickPendingSave = false;
+    state.quickReviewing = false;
+    state.quickReviewReady = false;
+    $("#quick-capture").classList.remove("is-reviewing");
+    btn.classList.remove("finishing", "review", "saving");
+    btn.setAttribute("aria-label", "Mantén premut per gravar una idea nova");
+    $("#quick-review-cancel").hidden = true;
+    $("#quick-preview-wrap").hidden = true;
+    $("#quick-preview").value = "";
+    $("#quick-record-hint").textContent = "Mantén premut per gravar una idea";
+  }
+
+  // Missatge temporal sota la bombolla; un de nou anul·la el temporitzador de
+  // l'anterior perquè no se'l mengi
+  let quickHintTimer = null;
+  function flashQuickText(text, ms) {
+    const hint = $("#quick-record-hint");
+    clearTimeout(quickHintTimer);
+    hint.textContent = text;
+    quickHintTimer = setTimeout(() => {
+      if (!state.quickRecording && !state.quickReviewing) hint.textContent = "Mantén premut per gravar una idea";
+    }, ms || 1600);
+  }
+
+  // Ja tenim el text final: es mostra per revisar-lo i la bombolla fa de ✓
+  function finishQuickSave() {
     if (!state.quickPendingSave) return;
     state.quickPendingSave = false;
 
     const btn = $("#quick-record-btn");
     const hint = $("#quick-record-hint");
-    btn.classList.remove("saving");
+    btn.classList.remove("finishing");
 
     const content = (state.quickTranscript + " " + state.quickInterim).trim();
     if (!content) {
-      hint.textContent = quickSpeechErrorText(state.quickSpeechError);
-      setTimeout(() => {
-        hint.textContent = "Mantén premut per gravar una idea";
-      }, 2200);
+      exitQuickReview();
+      flashQuickText(quickSpeechErrorText(state.quickSpeechError), 2200);
       return;
     }
+
+    const preview = $("#quick-preview");
+    preview.value = content;
+    $("#quick-preview-wrap").hidden = false;
+    autoGrow(preview);
+    btn.classList.add("review");
+    state.quickReviewReady = true;
+    hint.textContent = "Revisa el text i toca ✓ per desar-la";
+  }
+
+  // Toc al ✓: desa la idea amb el text (potser editat) de la previsualització
+  async function saveQuickReview() {
+    const hint = $("#quick-record-hint");
+    const btn = $("#quick-record-btn");
+    const content = $("#quick-preview").value.trim();
+    if (!content) {
+      toast("El text és buit: escriu alguna cosa o cancel·la");
+      flashField($("#quick-preview"));
+      return;
+    }
+    state.quickReviewReady = false; // evita desar-la dos cops
+    btn.classList.add("saving");
+    hint.textContent = "Desant…";
 
     const locationName = await Promise.race([
       state.quickLocationPromise || Promise.resolve(null),
@@ -798,13 +877,15 @@
       });
       state.projects.unshift(created);
       toast("Idea desada");
+      exitQuickReview();
       openDetail(created.id);
       suggestFromTranscript(created);
     } catch (err) {
       console.error(err);
       toast("No s'ha pogut desar la idea");
-    } finally {
-      hint.textContent = "Mantén premut per gravar una idea";
+      btn.classList.remove("saving");
+      state.quickReviewReady = true; // es pot tornar a provar
+      hint.textContent = "No s'ha pogut desar: torna-ho a provar";
     }
   }
 

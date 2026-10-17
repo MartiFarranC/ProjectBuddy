@@ -2550,3 +2550,90 @@ body.picker-open {
     flex: 1;
   }
 }
+
+/* ---------- Gravació ràpida: revisar abans de desar (✓ / Cancel·la) ---------- */
+
+.quick-check-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--good);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.25s var(--ease), transform 0.35s var(--ease);
+  pointer-events: none;
+}
+
+.quick-check-icon svg {
+  width: 46%;
+  height: 46%;
+}
+
+.quick-record-btn.finishing .quick-record-icon,
+.quick-record-btn.review .quick-record-icon,
+.quick-record-btn.saving .quick-record-icon {
+  opacity: 0;
+  animation: none;
+}
+
+.quick-record-btn.finishing .quick-record-pulse {
+  background: radial-gradient(circle, rgba(183, 180, 172, 0.2), transparent 70%);
+  animation: quick-glow 0.9s ease-in-out infinite;
+}
+
+.quick-record-btn.review {
+  border-color: var(--good);
+  box-shadow: 0 0 0 6px rgba(12, 163, 12, 0.12), 0 0 34px rgba(12, 163, 12, 0.35);
+}
+
+.quick-record-btn.review .quick-check-icon,
+.quick-record-btn.saving .quick-check-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.quick-record-btn.review .quick-record-pulse {
+  background: radial-gradient(circle, rgba(12, 163, 12, 0.22), transparent 70%);
+  animation: quick-glow 2.2s ease-in-out infinite;
+}
+
+.quick-record-btn.saving .quick-check-icon {
+  animation: hint-wait 0.8s ease-in-out infinite;
+}
+
+.quick-review-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.quick-review-cancel:hover {
+  color: #e08585;
+  border-color: rgba(208, 59, 59, 0.5);
+}
+
+#quick-capture.is-reviewing .quick-manual-link {
+  display: none;
+}
+
+.quick-preview-wrap {
+  width: 100%;
+  max-width: 560px;
+  margin-top: auto;
+  text-align: left;
+  animation: toast-in 0.3s var(--ease);
+}
+
+textarea.quick-preview {
+  font-size: 16px;
+  line-height: 1.55;
+  min-height: 70px;
+}
