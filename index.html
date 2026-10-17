@@ -6,12 +6,12 @@
   <title>ProjectBuddy · les teves idees</title>
   <meta name="description" content="Gestor personal d'idees i projectes futurs" />
   <!-- Icona de la pestanya: la bombeta del logotip (SVG, i PNG per als navegadors i mòbils que no en llegeixen) -->
-  <link rel="icon" type="image/svg+xml" href="img/favicon.svg?v=0.24" />
-  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=0.24" />
-  <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=0.24" />
+  <link rel="icon" type="image/svg+xml" href="img/favicon.svg?v=0.25" />
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=0.25" />
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=0.25" />
   <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
        nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
-  <link rel="stylesheet" href="css/style.css?v=0.24" />
+  <link rel="stylesheet" href="css/style.css?v=0.25" />
 </head>
 <body>
 
@@ -454,6 +454,27 @@
     </div>
   </div>
 
+  <!-- Confirmació del que s'ha detectat al text dictat (tipus i projecte) -->
+  <div class="picker-overlay" id="detect-modal" role="dialog" aria-modal="true" aria-labelledby="detect-title" hidden>
+    <div class="detect-card">
+      <p class="detect-eyebrow" id="detect-title">Al text hem detectat que dius:</p>
+      <p class="detect-phrase" id="detect-phrase"></p>
+      <p class="detect-sub">Ho apliquem a la idea? Pots canviar-ho abans de dir que sí.</p>
+      <div class="field-group">
+        <div class="field-label">Tipus</div>
+        <div class="chip-row" id="detect-kinds"></div>
+      </div>
+      <div class="field-group" id="detect-group-row">
+        <div class="field-label">Projecte</div>
+        <button type="button" class="detect-toggle" id="detect-group-toggle" aria-pressed="true"></button>
+      </div>
+      <div class="detect-actions">
+        <button type="button" class="btn btn-ghost" id="detect-no">No, deixa-ho</button>
+        <button type="button" class="btn btn-primary" id="detect-yes">Sí, aplica-ho</button>
+      </div>
+    </div>
+  </div>
+
   <div class="app-version" id="app-version" aria-label="Versió de l'app"></div>
 
   <!-- Indicador petit mentre es carrega o es desa alguna cosa -->
@@ -469,12 +490,13 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js?v=0.24"></script>
-  <script src="js/config.js?v=0.24"></script>
-  <script src="js/supabaseClient.js?v=0.24"></script>
-  <script src="js/db.js?v=0.24"></script>
-  <script src="js/speech.js?v=0.24"></script>
-  <script src="js/charts.js?v=0.24"></script>
-  <script src="js/app.js?v=0.24"></script>
+  <script src="js/version.js?v=0.25"></script>
+  <script src="js/config.js?v=0.25"></script>
+  <script src="js/supabaseClient.js?v=0.25"></script>
+  <script src="js/db.js?v=0.25"></script>
+  <script src="js/speech.js?v=0.25"></script>
+  <script src="js/detect.js?v=0.25"></script>
+  <script src="js/charts.js?v=0.25"></script>
+  <script src="js/app.js?v=0.25"></script>
 </body>
 </html>

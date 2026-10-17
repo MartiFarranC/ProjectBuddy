@@ -15,6 +15,7 @@
     captureGroup: null,
     captureFromGroup: null,
     captureReturn: null, // "map" o "group": on tornar després de desar
+    detectDismissed: new Set(), // propostes que ja has dit que no, en aquest formulari
     detailReturn: "dashboard",
     currentGroupId: null,
     groupAutosaveTimer: null,
@@ -404,6 +405,7 @@
     state.captureGroup = null;
     state.captureFromGroup = null;
     state.captureReturn = null;
+    state.detectDismissed = new Set();
     $("#mic-hint").textContent = "Prem el micro i parla en català";
     $("#mic-hint").classList.remove("live");
     renderCaptureChips();
@@ -412,7 +414,7 @@
   function wireCapture() {
     renderCaptureChips();
 
-    wireDictation($("#mic-btn"), $("#mic-hint"), $("#idea-textarea"));
+    wireDictation($("#mic-btn"), $("#mic-hint"), $("#idea-textarea"), suggestForCaptureForm);
 
     $("#save-idea-btn").addEventListener("click", () => saveNewIdea());
     $("#sync-project-btn").addEventListener("click", () => {
@@ -424,7 +426,7 @@
   }
 
   // Botó de micro que dicta dins d'un textarea (formulari d'idea i de projecte)
-  function wireDictation(micBtn, hint, textarea) {
+  function wireDictation(micBtn, hint, textarea, onDictationEnd) {
     const idleText = "Dicta en català";
     if (!window.PB_SPEECH.supported) {
       micBtn.disabled = true;
@@ -448,23 +450,33 @@
         },
         onEnd: () => {
           state.micRecording = false;
-          micBtn.classList.remove("recording");
-          hint.classList.remove("live");
+          micBtn.classList.remove("recording", "warming");
+          hint.classList.remove("live", "waiting");
           hint.textContent = idleText;
           stopMicVoiceMeter();
+          if (onDictationEnd) onDictationEnd();
         },
         onError: () => {
           state.micRecording = false;
-          micBtn.classList.remove("recording");
+          micBtn.classList.remove("recording", "warming");
+          hint.classList.remove("waiting");
           hint.textContent = "No t'he sentit bé, torna-ho a provar";
           stopMicVoiceMeter();
+        },
+        onReady: () => {
+          if (!state.micRecording) return;
+          micBtn.classList.remove("warming");
+          micBtn.classList.add("recording");
+          hint.classList.remove("waiting");
+          hint.textContent = "Ara parla";
+          startMicVoiceMeter();
         },
       });
       state.micSession.start();
       state.micRecording = true;
-      micBtn.classList.add("recording");
-      hint.textContent = "Escoltant...";
-      startMicVoiceMeter();
+      micBtn.classList.add("warming");
+      hint.classList.add("waiting");
+      hint.textContent = "Espera…";
     });
   }
 
@@ -627,6 +639,7 @@
       onSpeechEnd: () => {
         state.quickSpeaking = false;
       },
+      onReady: onQuickReady,
     });
     try {
       state.quickSpeechSession.start();
@@ -636,13 +649,38 @@
 
     state.quickRecording = true;
     state.quickOverCancel = false;
-    btn.classList.add("recording");
     $("#quick-capture").classList.add("is-recording");
-    hint.textContent = "T'escolto... deixa anar per desar";
-    startQuickWaveform();
+    setQuickWaiting();
 
     state.quickMoveHandler = updateQuickCancelHover;
     window.addEventListener("pointermove", state.quickMoveHandler);
+  }
+
+  // Mentre el reconeixement es prepara: «Espera…» i cap ona (el que diguis
+  // encara es perdria)
+  function setQuickWaiting() {
+    const btn = $("#quick-record-btn");
+    btn.classList.remove("recording");
+    btn.classList.add("warming");
+    $("#quick-record-hint").textContent = "Espera…";
+    $("#quick-record-hint").classList.add("waiting");
+    stopQuickWaveform();
+  }
+
+  // Ja escolta de debò: «Ara parla» i l'ona vermella comença
+  function onQuickReady() {
+    if (!state.quickRecording) return;
+    const btn = $("#quick-record-btn");
+    btn.classList.remove("warming");
+    btn.classList.add("recording");
+    const hint = $("#quick-record-hint");
+    hint.textContent = "Ara parla · deixa anar per desar";
+    hint.classList.remove("waiting");
+    hint.classList.remove("ready-flash");
+    void hint.offsetWidth;
+    hint.classList.add("ready-flash");
+    startQuickWaveform();
+    if (navigator.vibrate) navigator.vibrate(30);
   }
 
   // Errors després dels quals no té sentit tornar a engegar el reconeixement
@@ -657,6 +695,7 @@
       state.quickSpeechError = null;
       try {
         state.quickSpeechSession.start();
+        setQuickWaiting(); // es torna a preparar: avisa fins que torni a escoltar
         return;
       } catch (err) {
         console.error(err);
@@ -690,7 +729,8 @@
     const cancelBtn = $("#quick-cancel-btn");
 
     state.quickRecording = false;
-    btn.classList.remove("recording");
+    btn.classList.remove("recording", "warming");
+    hint.classList.remove("waiting", "ready-flash");
     $("#quick-capture").classList.remove("is-recording");
     cancelBtn.classList.remove("hover-target");
     state.quickOverCancel = false;
@@ -759,6 +799,7 @@
       state.projects.unshift(created);
       toast("Idea desada");
       openDetail(created.id);
+      suggestFromTranscript(created);
     } catch (err) {
       console.error(err);
       toast("No s'ha pogut desar la idea");
@@ -2266,6 +2307,129 @@
       tsize: pt.size,
       seed: pt.seed,
     });
+  }
+
+  /* ---------------------------------------------------------------------
+   * Detecció al text dictat: proposa el tipus i el projecte, sempre
+   * demanant confirmació
+   * ------------------------------------------------------------------- */
+
+  function detectHints(text, { skipKind, skipGroup, dismissed } = {}) {
+    const found = window.PB_DETECT.detect(text, state.groupsAvailable ? state.groups : []);
+    let kind = !skipKind && found.kind ? found.kind : null;
+    let group = !skipGroup && found.group ? found.group : null;
+    if (dismissed) {
+      if (kind && dismissed.has("kind:" + kind.value)) kind = null;
+      if (group && dismissed.has("group:" + group.id)) group = null;
+    }
+    return kind || group ? { kind, group } : null;
+  }
+
+  // Mostra la finestra i resol amb { kind, groupId } si dius que sí, o null
+  function askDetection(hints) {
+    return new Promise((resolve) => {
+      const modal = $("#detect-modal");
+      const kindLabel = hints.kind ? window.PB_DB.IDEA_KINDS.find((k) => k.value === hints.kind.value).label.toLowerCase() : "";
+      const parts = [];
+      if (hints.kind) parts.push(`<strong>«${escapeHtml(kindLabel)}»</strong>`);
+      if (hints.group) parts.push(`${hints.kind ? "del" : "el"} projecte <strong>«${escapeHtml(hints.group.title)}»</strong>`);
+      $("#detect-phrase").innerHTML = parts.join(" ");
+
+      let kind = hints.kind ? hints.kind.value : null;
+      let linkGroup = !!hints.group;
+      const renderKinds = () =>
+        renderKindChips($("#detect-kinds"), kind, (k) => {
+          kind = k;
+          renderKinds();
+        });
+      renderKinds();
+
+      const toggle = $("#detect-group-toggle");
+      $("#detect-group-row").hidden = !hints.group;
+      const renderToggle = () => {
+        if (!hints.group) return;
+        toggle.setAttribute("aria-pressed", linkGroup ? "true" : "false");
+        toggle.classList.toggle("on", linkGroup);
+        toggle.innerHTML = `<span class="detect-check" aria-hidden="true">${linkGroup ? "✓" : ""}</span>Sincronitzar-la amb «${escapeHtml(hints.group.title)}»`;
+      };
+      renderToggle();
+      toggle.onclick = () => {
+        linkGroup = !linkGroup;
+        renderToggle();
+      };
+
+      const close = (result) => {
+        modal.hidden = true;
+        document.removeEventListener("keydown", onKey);
+        resolve(result);
+      };
+      const onKey = (e) => {
+        if (e.key === "Escape") close(null);
+      };
+      $("#detect-no").onclick = () => close(null);
+      $("#detect-yes").onclick = () => {
+        // Per sincronitzar-la amb un projecte cal saber de quin tipus és
+        if (linkGroup && !kind) {
+          toast("Tria el tipus per sincronitzar-la amb el projecte");
+          flashField($("#detect-kinds"));
+          return;
+        }
+        close({ kind, groupId: linkGroup ? hints.group.id : null });
+      };
+      modal.onclick = (e) => {
+        if (e.target === modal) close(null);
+      };
+      document.addEventListener("keydown", onKey);
+      modal.hidden = false;
+      $("#detect-yes").focus();
+    });
+  }
+
+  // Després de gravar una idea per veu (ja desada i oberta a la seva fitxa)
+  async function suggestFromTranscript(idea) {
+    const hints = detectHints(idea.content, { skipKind: !!idea.kind, skipGroup: !!idea.group_id });
+    if (!hints) return;
+    const choice = await askDetection(hints);
+    if (!choice) return;
+    const patch = {};
+    if (choice.kind && choice.kind !== idea.kind) patch.kind = choice.kind;
+    if (choice.groupId) patch.group_id = choice.groupId;
+    if (!Object.keys(patch).length) return;
+    try {
+      const updated = await saveWithKindFallback((fields) => window.PB_DB.updateProject(idea.id, fields), patch);
+      Object.assign(idea, updated);
+      const g = choice.groupId && state.groups.find((x) => x.id === choice.groupId);
+      toast(g ? `Idea sincronitzada amb «${g.title}»` : "Tipus de la idea desat");
+      if (state.currentView === "detail" && state.currentProjectId === idea.id) {
+        renderDetailChips(idea);
+        renderDetailGroups(idea);
+      }
+    } catch (err) {
+      console.error(err);
+      toast("No s'ha pogut aplicar");
+    }
+  }
+
+  // Al formulari d'idea nova, quan acaba el dictat: omple el tipus i el
+  // projecte del formulari (encara no es desa res)
+  async function suggestForCaptureForm() {
+    const text = $("#idea-textarea").value;
+    const hints = detectHints(text, {
+      skipKind: !!state.captureKind,
+      skipGroup: !!state.captureGroup,
+      dismissed: state.detectDismissed,
+    });
+    if (!hints) return;
+    const choice = await askDetection(hints);
+    if (!choice) {
+      if (hints.kind) state.detectDismissed.add("kind:" + hints.kind.value);
+      if (hints.group) state.detectDismissed.add("group:" + hints.group.id);
+      return;
+    }
+    if (choice.kind) state.captureKind = choice.kind;
+    if (choice.groupId) state.captureGroup = choice.groupId;
+    renderCaptureChips();
+    toast("Fet: revisa-ho i desa la idea");
   }
 
   /* ---------------------------------------------------------------------

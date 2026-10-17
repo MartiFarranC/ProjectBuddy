@@ -42,7 +42,10 @@ window.PB_SPEECH = (function () {
     return i === a.length ? t.slice(i).join(" ") : null;
   }
 
-  function createSession({ onInterim, onFinalChunk, onEnd, onError, onSpeechStart, onSpeechEnd }) {
+  // `onReady` avisa quan el reconeixement ja capta àudio de debò: els primers
+  // instants després de start() el navegador encara s'està preparant i el que
+  // diguis es perd.
+  function createSession({ onInterim, onFinalChunk, onEnd, onError, onSpeechStart, onSpeechEnd, onReady }) {
     if (!supported) return null;
     const rec = new SpeechRecognition();
     rec.lang = "ca-ES";
@@ -52,7 +55,17 @@ window.PB_SPEECH = (function () {
     // Text final ja enviat en aquesta tirada del reconeixement
     let emitted = "";
 
+    let ready = false;
+    let readyTimer = null;
+    function markReady() {
+      clearTimeout(readyTimer);
+      if (ready) return;
+      ready = true;
+      if (onReady) onReady();
+    }
+
     rec.onresult = (event) => {
+      markReady();
       const full = mergeFinals(event.results);
       if (full && norm(full) !== norm(emitted)) {
         let delta = stripKnownPrefix(full, emitted);
@@ -81,14 +94,25 @@ window.PB_SPEECH = (function () {
       onInterim && onInterim(interim);
     };
 
+    // "audiostart" és el senyal bo; si un navegador no l'envia, n'hi ha prou
+    // amb "start" després d'una estona
+    rec.onstart = () => {
+      readyTimer = setTimeout(markReady, 1200);
+    };
+    rec.onaudiostart = markReady;
     rec.onerror = (event) => onError && onError(event.error);
     rec.onspeechstart = () => onSpeechStart && onSpeechStart();
     rec.onspeechend = () => onSpeechEnd && onSpeechEnd();
-    rec.onend = () => onEnd && onEnd();
+    rec.onend = () => {
+      clearTimeout(readyTimer);
+      onEnd && onEnd();
+    };
 
     return {
       start: () => {
         emitted = "";
+        ready = false;
+        clearTimeout(readyTimer);
         rec.start();
       },
       stop: () => rec.stop(),
