@@ -2649,17 +2649,22 @@
 
   function renderStats() {
     const empty = $("#stats-empty");
-    if (!state.projects.length) {
-      empty.hidden = false;
-      $(".stats-grid").hidden = true;
+    const hasData = state.projects.length > 0;
+    empty.hidden = hasData;
+    $$("#view-stats .stats-grid, #view-stats .stats-section").forEach((el) => (el.hidden = !hasData));
+    if (!hasData) {
       $("#stats-hero").innerHTML = "";
       return;
     }
-    empty.hidden = true;
-    $(".stats-grid").hidden = false;
     // Les gràfiques per categoria fan servir la del projecte de cada idea
     const ideas = state.projects.map((p) => ({ ...p, category: ideaCategory(p), categories: ideaCategories(p) }));
-    window.PB_CHARTS.renderAll(ideas, state.categories);
+    window.PB_CHARTS.renderAll({
+      ideas,
+      groups: state.groupsAvailable ? state.groups : [],
+      categories: state.categories,
+      ideaName,
+      onOpenIdea: (id) => openDetail(id, "stats"),
+    });
   }
 
   async function loadData() {

@@ -6,12 +6,12 @@
   <title>ProjectBuddy · les teves idees</title>
   <meta name="description" content="Gestor personal d'idees i projectes futurs" />
   <!-- Icona de la pestanya: la bombeta del logotip (SVG, i PNG per als navegadors i mòbils que no en llegeixen) -->
-  <link rel="icon" type="image/svg+xml" href="img/favicon.svg?v=0.26" />
-  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=0.26" />
-  <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=0.26" />
+  <link rel="icon" type="image/svg+xml" href="img/favicon.svg?v=0.27" />
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=0.27" />
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=0.27" />
   <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
        nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
-  <link rel="stylesheet" href="css/style.css?v=0.26" />
+  <link rel="stylesheet" href="css/style.css?v=0.27" />
 </head>
 <body>
 
@@ -403,29 +403,69 @@
 
         <div class="hero-tiles" id="stats-hero"></div>
 
+        <h3 class="stats-section">Estat i progrés</h3>
+        <div class="stats-grid">
+          <div class="stat-tile wide">
+            <h3>Com estan les teves idees</h3>
+            <p class="stat-hint">Totes les idees, segons l'estat</p>
+            <div class="status-split" id="stats-status-split"></div>
+          </div>
+
+          <div class="stat-tile wide">
+            <h3>Progrés per projecte</h3>
+            <p class="stat-hint">Idees de cada projecte segons l'estat · ordenats pel que tenen per fer</p>
+            <div class="chart-box" id="box-projects"><canvas id="chart-projects"></canvas></div>
+          </div>
+        </div>
+
+        <h3 class="stats-section">Què faig primer</h3>
+        <div class="stats-grid">
+          <div class="stat-tile">
+            <h3>Les 5 idees amb més prioritat</h3>
+            <p class="stat-hint">Per fer, valorades · ganes + necessitat − dificultat</p>
+            <ol class="top-ideas" id="stats-top-ideas"></ol>
+          </div>
+
+          <div class="stat-tile">
+            <h3>Matriu de prioritat</h3>
+            <p class="stat-hint">Necessitat vs. ganes · bombolla gran = fàcil</p>
+            <div class="chart-box" style="height:280px"><canvas id="chart-priority"></canvas></div>
+          </div>
+        </div>
+
+        <h3 class="stats-section">Ritme</h3>
         <div class="stats-grid">
           <div class="stat-tile wide">
             <h3>Idees creades per setmana</h3>
-            <p class="stat-hint">Quan tens més pics d'inspiració</p>
-            <canvas id="chart-timeline" height="90"></canvas>
-          </div>
-
-          <div class="stat-tile">
-            <h3>Projectes per categoria</h3>
-            <p class="stat-hint">On es concentren les teves idees</p>
-            <canvas id="chart-category" height="220"></canvas>
-          </div>
-
-          <div class="stat-tile">
-            <h3>Projectes per ubicació</h3>
-            <p class="stat-hint">On sols pensar les millors idees</p>
-            <canvas id="chart-location" height="220"></canvas>
+            <p class="stat-hint">Les últimes 16 setmanes</p>
+            <div class="chart-box" style="height:200px"><canvas id="chart-timeline"></canvas></div>
           </div>
 
           <div class="stat-tile wide">
-            <h3>Matriu de prioritat</h3>
-            <p class="stat-hint">Necessitat vs. ganes · la mida és com de fàcil és (bombolla gran = fàcil)</p>
-            <canvas id="chart-priority" height="260"></canvas>
+            <h3>Quan et venen les idees</h3>
+            <p class="stat-hint">Dia de la setmana i hora · més fosc = més idees</p>
+            <div class="heatmap" id="stats-heatmap"></div>
+          </div>
+        </div>
+
+        <h3 class="stats-section">De què van</h3>
+        <div class="stats-grid three">
+          <div class="stat-tile">
+            <h3>Tipus d'idea</h3>
+            <p class="stat-hint">Features, millores i correccions</p>
+            <div class="chart-box" id="box-kind"><canvas id="chart-kind"></canvas></div>
+          </div>
+
+          <div class="stat-tile">
+            <h3>Idees per categoria</h3>
+            <p class="stat-hint">La que hereten del seu projecte</p>
+            <div class="chart-box" id="box-category"><canvas id="chart-category"></canvas></div>
+          </div>
+
+          <div class="stat-tile">
+            <h3>On penses les idees</h3>
+            <p class="stat-hint">Ubicació en el moment de crear-les</p>
+            <div class="chart-box" id="box-location"><canvas id="chart-location"></canvas></div>
           </div>
         </div>
 
@@ -500,13 +540,13 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js?v=0.26"></script>
-  <script src="js/config.js?v=0.26"></script>
-  <script src="js/supabaseClient.js?v=0.26"></script>
-  <script src="js/db.js?v=0.26"></script>
-  <script src="js/speech.js?v=0.26"></script>
-  <script src="js/detect.js?v=0.26"></script>
-  <script src="js/charts.js?v=0.26"></script>
-  <script src="js/app.js?v=0.26"></script>
+  <script src="js/version.js?v=0.27"></script>
+  <script src="js/config.js?v=0.27"></script>
+  <script src="js/supabaseClient.js?v=0.27"></script>
+  <script src="js/db.js?v=0.27"></script>
+  <script src="js/speech.js?v=0.27"></script>
+  <script src="js/detect.js?v=0.27"></script>
+  <script src="js/charts.js?v=0.27"></script>
+  <script src="js/app.js?v=0.27"></script>
 </body>
 </html>
