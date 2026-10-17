@@ -15,11 +15,12 @@ window.PB_DB = (function () {
 
   const DEFAULT_LOCATIONS = ["Casa", "Feina / Uni", "Transport", "Carrer"];
 
+  // Estats d'idees i projectes. `groupLabel` és el nom quan és un projecte.
   const STATUSES = [
-    { value: "idea", label: "Idea", color: "muted" },
-    { value: "en_curs", label: "En curs", color: "warning" },
-    { value: "feta", label: "Feta", color: "good" },
-    { value: "abandonada", label: "Abandonada", color: "serious" },
+    { value: "idea", label: "Idea", groupLabel: "Per començar", color: "muted" },
+    { value: "en_curs", label: "En procés", groupLabel: "En procés", color: "warning" },
+    { value: "feta", label: "Feta", groupLabel: "Fet", color: "good" },
+    { value: "abandonada", label: "Abandonada", groupLabel: "Abandonat", color: "serious" },
   ];
 
   async function listProjects() {

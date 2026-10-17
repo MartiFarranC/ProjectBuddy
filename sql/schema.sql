@@ -154,5 +154,8 @@ create policy "project_groups: own rows" on public.project_groups
   for all to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+-- Estat del projecte (com el de les idees): idea, en_curs, feta, abandonada
+alter table public.project_groups add column if not exists status text not null default 'idea';
+
 -- Fa que l'API vegi de seguida la taula i la columna noves
 notify pgrst, 'reload schema';

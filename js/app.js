@@ -19,6 +19,7 @@
     groupAutosaveTimer: null,
     newGroupCategory: null,
     mapFocusId: null,
+    mapFilter: "per_fer",
     micSession: null,
     micRecording: false,
     micStream: null,
@@ -968,12 +969,10 @@
         ? `<span>D${p.difficulty} · N${p.necessity} · G${p.desire}</span>`
         : `<span class="tag-pending">Per valorar</span>`;
 
-      const status = window.PB_DB.STATUSES.find((s) => s.value === (p.status || "idea")) || window.PB_DB.STATUSES[0];
-
       card.innerHTML = `
         <div class="card-top">
           ${p.category ? `<span class="tag"><span class="tag-dot"></span>${p.category}</span>` : "<span></span>"}
-          <span class="status-badge status-${status.value}">${status.label}</span>
+          ${statusBadgeHtml(p)}
         </div>
         <h3 class="card-title">${escapeHtml(ideaName(p))}</h3>
         <p class="card-excerpt">${escapeHtml(excerpt(p.content, 140))}</p>
@@ -1073,7 +1072,7 @@
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "chip status-" + s.value;
-      chip.textContent = s.label;
+      chip.innerHTML = `${statusGlyph(s.value) ? `<span class="chip-glyph">${statusGlyph(s.value)}</span>` : ""}${s.label}`;
       if (current === s.value) chip.classList.add("selected");
       chip.addEventListener("click", () => {
         p.status = s.value;
@@ -1238,6 +1237,39 @@
     return window.PB_DB.STATUSES.find((s) => s.value === (p.status || "idea")) || window.PB_DB.STATUSES[0];
   }
 
+  // Símbol de cada estat (les idees sense començar no en porten)
+  const STATUS_GLYPHS = {
+    en_curs:
+      '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 4a6 6 0 0 1 0 12z" fill="currentColor"/></svg>',
+    feta: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10.5l3.2 3.2L15 6.8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    abandonada:
+      '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6.5 6.5l7 7M13.5 6.5l-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  };
+
+  function statusGlyph(value) {
+    return STATUS_GLYPHS[value] || "";
+  }
+
+  // Etiqueta d'estat per a llistes: símbol + text, del color de l'estat
+  function statusBadgeHtml(item, isGroup) {
+    const st = statusOf(item);
+    const glyph = statusGlyph(st.value);
+    return `<span class="status-badge status-${st.value}${glyph ? " has-glyph" : ""}">${glyph}${isGroup ? st.groupLabel : st.label}</span>`;
+  }
+
+  // Filtre del mapa: quins estats es veuen
+  const MAP_FILTERS = {
+    tots: () => true,
+    per_fer: (st) => st === "idea" || st === "en_curs",
+    en_curs: (st) => st === "en_curs",
+    idea: (st) => st === "idea",
+  };
+
+  function mapShows(item) {
+    const test = MAP_FILTERS[state.mapFilter] || MAP_FILTERS.per_fer;
+    return test(item.status || "idea");
+  }
+
   function openNewGroup() {
     if (!state.groupsAvailable) {
       toast("Per crear projectes, primer executa sql/schema.sql al SQL Editor de Supabase");
@@ -1326,11 +1358,11 @@
       card.innerHTML = `
         <div class="card-top">
           ${g.category ? `<span class="tag"><span class="tag-dot"></span>${escapeHtml(g.category)}</span>` : "<span></span>"}
-          <span class="card-count">${ideasLabel(count)}</span>
+          ${statusBadgeHtml(g, true)}
         </div>
         <h3 class="card-title">${escapeHtml(g.title)}</h3>
         <p class="card-excerpt">${escapeHtml(excerpt(g.content, 140))}</p>
-        <div class="card-meta"><span>${formatRelative(g.created_at)}</span></div>
+        <div class="card-meta"><span>${formatRelative(g.created_at)}</span><span class="card-count">${ideasLabel(count)}</span></div>
       `;
       card.addEventListener("click", () => openGroup(g.id, "groups"));
       grid.appendChild(card);
@@ -1362,9 +1394,38 @@
     $("#group-content-input").value = g.content || "";
     $("#group-created-at").textContent = "Creat el " + formatDateTime(g.created_at);
     renderGroupCategories(g);
+    renderGroupStatus(g);
     renderGroupIdeas(g);
     showView("group");
     autoGrowAll($("#view-group"));
+  }
+
+  function renderGroupStatus(g) {
+    const wrap = $("#group-status");
+    wrap.innerHTML = "";
+    const current = g.status || "idea";
+    window.PB_DB.STATUSES.forEach((st) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip status-" + st.value;
+      chip.innerHTML = `${statusGlyph(st.value) ? `<span class="chip-glyph">${statusGlyph(st.value)}</span>` : ""}${st.groupLabel}`;
+      if (current === st.value) chip.classList.add("selected");
+      chip.addEventListener("click", async () => {
+        if (current === st.value) return;
+        g.status = st.value;
+        renderGroupStatus(g);
+        try {
+          const updated = await window.PB_DB.updateGroup(g.id, { status: st.value });
+          Object.assign(g, updated);
+        } catch (err) {
+          console.error(err);
+          g.status = current;
+          renderGroupStatus(g);
+          toast("Per marcar l'estat dels projectes, executa un altre cop sql/schema.sql a Supabase");
+        }
+      });
+      wrap.appendChild(chip);
+    });
   }
 
   function renderGroupCategories(g) {
@@ -1399,7 +1460,7 @@
       row.innerHTML = `
         <div class="group-idea-main">
           <div class="group-idea-title">${escapeHtml(ideaName(p))}</div>
-          <div class="group-idea-meta">${statusOf(p).label} · ${formatRelative(p.created_at)}</div>
+          <div class="group-idea-meta">${statusBadgeHtml(p)} <span>${formatRelative(p.created_at)}</span></div>
         </div>
         <button type="button" class="group-idea-unlink" title="Desenllaça del projecte" aria-label="Desenllaça del projecte">✕</button>
       `;
@@ -1502,6 +1563,19 @@
     });
 
     // Mapa mental
+    try {
+      const saved = localStorage.getItem("pb-map-filter");
+      if (saved && MAP_FILTERS[saved]) state.mapFilter = saved;
+    } catch (e) {}
+    $$("#map-filter [data-filter]").forEach((b) =>
+      b.addEventListener("click", () => {
+        state.mapFilter = b.dataset.filter;
+        try {
+          localStorage.setItem("pb-map-filter", state.mapFilter);
+        } catch (e) {}
+        renderMap();
+      })
+    );
     $("#map-back-btn").addEventListener("click", unfocusMap);
     $("#map-open-btn").addEventListener("click", () => {
       if (state.mapFocusId) openGroup(state.mapFocusId, "map");
@@ -1532,7 +1606,7 @@
    * ------------------------------------------------------------------- */
 
   const MAP_BAR_SPACE = 70; // espai de baix per als botons del mapa
-  const MAP_TOP_SPACE = 56; // espai de dalt pel botó «Crear projecte nou»
+  const MAP_TOP_DEFAULT = 56; // espai de dalt pel botó «Crear projecte nou» i el filtre
   const SVG_NS = "http://www.w3.org/2000/svg";
 
   const map = {
@@ -1540,7 +1614,32 @@
     raf: null,
     t0: 0,
     calm: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    top: MAP_TOP_DEFAULT,
   };
+
+  // L'espai lliure de dalt depèn d'on acaba el filtre (al mòbil va en una fila a part)
+  function measureMapTop() {
+    const stage = $("#map-stage").getBoundingClientRect();
+    const filter = $("#map-filter").getBoundingClientRect();
+    map.top = Math.max(MAP_TOP_DEFAULT, filter.bottom - stage.top + 14);
+  }
+
+  function renderMapFilter() {
+    $$("#map-filter [data-filter]").forEach((b) => {
+      const on = b.dataset.filter === state.mapFilter;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-checked", on ? "true" : "false");
+    });
+  }
+
+  function mapIdeasOf(groupId) {
+    return ideasOfGroup(groupId).filter(mapShows);
+  }
+
+  function mapBadgeHtml(item) {
+    const glyph = statusGlyph(item.status || "idea");
+    return glyph ? `<span class="map-badge status-${item.status}">${glyph}</span>` : "";
+  }
 
   function mapSize() {
     const stage = $("#map-stage");
@@ -1548,7 +1647,7 @@
   }
 
   function mapCenter(W, H) {
-    return { cx: W / 2, cy: (MAP_TOP_SPACE + H - MAP_BAR_SPACE) / 2 };
+    return { cx: W / 2, cy: (map.top + H - MAP_BAR_SPACE) / 2 };
   }
 
   // Paràmetres de moviment estables per a cada node (a partir del seu id)
@@ -1690,10 +1789,16 @@
     stage.classList.remove("is-focused");
 
     const empty = $("#map-empty");
-    const groups = state.groups;
+    renderMapFilter();
+    measureMapTop();
+    const groups = state.groups.filter(mapShows);
     empty.hidden = groups.length > 0 && state.groupsAvailable;
     if (!state.groupsAvailable) {
       empty.innerHTML = "Per fer servir el mapa, executa un altre cop<br />sql/schema.sql al SQL Editor de Supabase.";
+    } else if (!state.groups.length) {
+      empty.innerHTML = "Encara no tens cap projecte.<br />Crea'n un amb «Crear projecte nou».";
+    } else {
+      empty.innerHTML = "Cap projecte amb aquest filtre.<br />Prova «Tots» per veure'ls tots.";
     }
     resetMapBar();
     if (!groups.length || !state.groupsAvailable) {
@@ -1706,9 +1811,9 @@
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
 
     // Mida: totes comparteixen l'espai; les que tenen més idees, més grans
-    const counts = groups.map((g) => ideasOfGroup(g.id).length);
+    const counts = groups.map((g) => mapIdeasOf(g.id).length);
     const maxCount = Math.max(1, ...counts);
-    const usable = W * (H - MAP_BAR_SPACE - MAP_TOP_SPACE);
+    const usable = W * (H - MAP_BAR_SPACE - map.top);
     const base = Math.max(70, Math.min(170, Math.sqrt((usable * 0.3) / groups.length)));
     const maxSize = Math.min(W, H) * 0.42;
     const sizes = counts.map((c, i) => {
@@ -1730,7 +1835,8 @@
       el.style.setProperty("--bubble-color", catColorVar(groupSlot(g)));
       el.innerHTML = `
         <span class="map-bubble-title">${escapeHtml(g.title || "Projecte sense títol")}</span>
-        <span class="map-bubble-count">${ideasLabel(count)}</span>`;
+        <span class="map-bubble-count">${ideasLabel(count)}</span>
+        ${mapBadgeHtml(g)}`;
       el.setAttribute("aria-label", `${g.title}: ${ideasLabel(count)}`);
       fitBubbleText(el, ".map-bubble-title", 0.56);
       el.addEventListener("click", (e) => {
@@ -1766,7 +1872,7 @@
   // són cercles que no es mouen (p.ex. la bombolla del projecte obert);
   // `pull` és cap on tendeixen (centre i força).
   function relaxCircles(pts, W, H, { fixed = [], gap = 12, pull = null, iterations = 300 } = {}) {
-    const top = MAP_TOP_SPACE;
+    const top = map.top;
     const bottom = H - MAP_BAR_SPACE;
     const n = pts.length;
     for (let iter = 0; iter < iterations; iter++) {
@@ -1817,7 +1923,7 @@
   function layoutBubbles(sizes, W, H) {
     const { cx, cy } = mapCenter(W, H);
     const rx = W / 2 - 40;
-    const ry = (H - MAP_BAR_SPACE - MAP_TOP_SPACE) / 2 - 20;
+    const ry = (H - MAP_BAR_SPACE - map.top) / 2 - 20;
     const n = sizes.length;
     const pts = sizes.map((s, i) => {
       const r = n === 1 ? 0 : Math.sqrt((i + 0.5) / n) * 0.75;
@@ -1871,7 +1977,8 @@
 
     const { W, H } = mapSize();
     const { cx, cy } = mapCenter(W, H);
-    const ideas = ideasOfGroup(groupId);
+    const ideas = mapIdeasOf(groupId);
+    const hiddenByFilter = ideasOfGroup(groupId).length - ideas.length;
     const color = catColorVar(groupSlot(g));
     const scale = Math.max(0.85, Math.min(1, Math.min(W, H) / 760));
 
@@ -1919,7 +2026,8 @@
       el.className = "map-idea" + (p ? "" : " is-empty");
       el.style.setProperty("--idea-color", p ? `var(--${statusOf(p).color})` : "var(--muted)");
       el.style.setProperty("--delay", `${(i * 0.04).toFixed(2)}s`);
-      el.innerHTML = `<span class="map-idea-title">${escapeHtml(p ? ideaName(p) : "Encara no hi ha idees")}</span>`;
+      const emptyText = hiddenByFilter ? "Cap idea amb aquest filtre" : "Encara no hi ha idees";
+      el.innerHTML = `<span class="map-idea-title">${escapeHtml(p ? ideaName(p) : emptyText)}</span>${p ? mapBadgeHtml(p) : ""}`;
       fitBubbleText(el, ".map-idea-title", 0.7);
       if (p) {
         el.title = ideaName(p);

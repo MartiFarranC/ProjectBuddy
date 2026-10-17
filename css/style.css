@@ -1758,6 +1758,7 @@ body.on-detail .fab {
 .map-empty {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2040,5 +2041,125 @@ textarea.idea-reader-text:focus {
   .bulb-loader .bulb-filament,
   .bulb-loader .bulb-ray {
     animation-duration: 3.2s;
+  }
+}
+
+/* ---------- Estats: símbols a llistes i al mapa ---------- */
+
+.status-badge.has-glyph::before {
+  display: none;
+}
+
+.status-badge svg,
+.chip-glyph svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.chip-glyph {
+  display: inline-flex;
+  vertical-align: -1px;
+  margin-right: 6px;
+}
+
+.group-idea-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.group-idea-meta .status-badge {
+  padding: 1px 7px;
+  font-size: 10.5px;
+}
+
+/* Bombolla petita d'estat, a dalt a la dreta de la bombolla del mapa */
+.map-badge {
+  position: absolute;
+  left: 85.4%;
+  top: 14.6%;
+  width: clamp(18px, 24cqw, 34px);
+  height: clamp(18px, 24cqw, 34px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid #000;
+  display: grid;
+  place-items: center;
+  color: #0a0a0a;
+  pointer-events: none;
+}
+
+.map-badge svg {
+  width: 68%;
+  height: 68%;
+}
+
+.map-badge.status-en_curs {
+  background: var(--warning);
+  box-shadow: 0 0 12px rgba(250, 178, 25, 0.55);
+}
+
+.map-badge.status-feta {
+  background: var(--good);
+  box-shadow: 0 0 12px rgba(12, 163, 12, 0.6);
+}
+
+.map-badge.status-abandonada {
+  background: var(--serious);
+  box-shadow: 0 0 12px rgba(236, 131, 90, 0.55);
+}
+
+/* Filtre del mapa: Tots / Per fer / En procés / Sense començar */
+.map-filter {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  left: 16px;
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(28, 28, 25, 0.85);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
+}
+
+.map-filter button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.map-filter button:hover {
+  color: var(--text);
+}
+
+.map-filter button.active {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+@media (max-width: 820px) {
+  .map-filter {
+    top: calc(56px + env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .map-filter button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  body.on-map .app-version {
+    display: none;
   }
 }

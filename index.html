@@ -8,7 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💡</text></svg>" />
   <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
        nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
-  <link rel="stylesheet" href="css/style.css?v=0.17" />
+  <link rel="stylesheet" href="css/style.css?v=0.18" />
 </head>
 <body>
 
@@ -322,6 +322,7 @@
               <div class="meta-row">
                 <span id="group-created-at">—</span>
               </div>
+              <div class="chip-row status-chip-row" id="group-status"></div>
               <div class="autosave-indicator" id="group-autosave-indicator">Desat</div>
             </div>
 
@@ -352,6 +353,12 @@
       <section id="view-map" class="view map-view" hidden>
         <div class="map-stage" id="map-stage">
           <svg class="map-links" id="map-links" aria-hidden="true"></svg>
+        </div>
+        <div class="map-filter" id="map-filter" role="radiogroup" aria-label="Què es veu al mapa">
+          <button type="button" data-filter="tots" role="radio">Tots</button>
+          <button type="button" data-filter="per_fer" role="radio">Per fer</button>
+          <button type="button" data-filter="en_curs" role="radio">En procés</button>
+          <button type="button" data-filter="idea" role="radio">Sense començar</button>
         </div>
         <div class="map-bar">
           <button type="button" class="map-back" id="map-back-btn" hidden>← Tots els projectes</button>
@@ -433,12 +440,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js?v=0.17"></script>
-  <script src="js/config.js?v=0.17"></script>
-  <script src="js/supabaseClient.js?v=0.17"></script>
-  <script src="js/db.js?v=0.17"></script>
-  <script src="js/speech.js?v=0.17"></script>
-  <script src="js/charts.js?v=0.17"></script>
-  <script src="js/app.js?v=0.17"></script>
+  <script src="js/version.js?v=0.18"></script>
+  <script src="js/config.js?v=0.18"></script>
+  <script src="js/supabaseClient.js?v=0.18"></script>
+  <script src="js/db.js?v=0.18"></script>
+  <script src="js/speech.js?v=0.18"></script>
+  <script src="js/charts.js?v=0.18"></script>
+  <script src="js/app.js?v=0.18"></script>
 </body>
 </html>
