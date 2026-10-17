@@ -149,6 +149,13 @@ window.PB_DB = (function () {
     });
   }
 
+  // Categories d'un projecte: la llista nova si n'hi ha, si no la única d'abans
+  function groupCategories(g) {
+    if (!g) return [];
+    if (Array.isArray(g.categories) && g.categories.length) return g.categories;
+    return g.category ? [g.category] : [];
+  }
+
   function categorySlot(categories, name) {
     const found = categories.find((c) => c.name === name);
     return found ? found.slot : 8;
@@ -172,5 +179,6 @@ window.PB_DB = (function () {
     listLocations,
     addLocation,
     categorySlot,
+    groupCategories,
   };
 })();

@@ -2080,8 +2080,8 @@ textarea.idea-reader-text:focus {
   position: absolute;
   left: 85.4%;
   top: 14.6%;
-  width: clamp(18px, 24cqw, 34px);
-  height: clamp(18px, 24cqw, 34px);
+  width: clamp(20px, 24cqw, 34px);
+  height: clamp(20px, 24cqw, 34px);
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: 2px solid #000;
@@ -2166,19 +2166,6 @@ textarea.idea-reader-text:focus {
 
 /* ---------- Tipus d'idea (Feature nova / Millora / Correcció) ---------- */
 
-.kind-tag {
-  display: inline-flex;
-  align-items: center;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  color: var(--kind-color);
-  background: color-mix(in srgb, var(--kind-color) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--kind-color) 40%, transparent);
-  white-space: nowrap;
-}
-
 .card-tags {
   display: flex;
   align-items: center;
@@ -2205,4 +2192,26 @@ textarea.idea-reader-text:focus {
 
 .inherited-from {
   color: var(--muted);
+}
+
+/* Tipus d'idea amb el mateix format que l'estat */
+.status-badge.kind-badge {
+  color: var(--kind-color);
+  border-color: color-mix(in srgb, var(--kind-color) 45%, transparent);
+}
+
+/* Al mapa, el tipus va a dalt a l'esquerra (l'estat és a la dreta) */
+.map-badge.map-kind-badge {
+  left: 14.6%;
+  background: var(--kind-color);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--kind-color) 60%, transparent);
+}
+
+.card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  max-width: 60%;
 }

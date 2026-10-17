@@ -163,5 +163,12 @@ alter table public.project_groups add column if not exists status text not null 
 alter table public.projects add column if not exists kind text
   check (kind in ('millora', 'correccio', 'feature'));
 
+-- Un projecte pot tenir diverses categories. "category" es manté com la
+-- principal (la primera) perquè les dades antigues continuïn funcionant.
+alter table public.project_groups add column if not exists categories text[] not null default '{}';
+update public.project_groups
+  set categories = array[category]
+  where category is not null and cardinality(categories) = 0;
+
 -- Fa que l'API vegi de seguida la taula i la columna noves
 notify pgrst, 'reload schema';

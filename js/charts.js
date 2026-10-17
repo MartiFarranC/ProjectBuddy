@@ -117,9 +117,10 @@ window.PB_CHARTS = (function () {
     destroy("category");
 
     const counts = new Map();
+    // Si una idea té diverses categories (les del seu projecte), compta a cadascuna
     projects.forEach((p) => {
-      const name = p.category || "Sense categoria";
-      counts.set(name, (counts.get(name) || 0) + 1);
+      const names = p.categories && p.categories.length ? p.categories : [p.category || "Sense categoria"];
+      names.forEach((name) => counts.set(name, (counts.get(name) || 0) + 1));
     });
 
     const entries = [...counts.entries()].sort((a, b) => b[1] - a[1]);
