@@ -339,9 +339,25 @@
     });
     locWrap.appendChild(other);
 
-    renderGroupChips($("#capture-groups"), state.captureGroup, (id) => {
-      state.captureGroup = id;
-      renderCaptureChips();
+    renderCaptureSync();
+  }
+
+  // Projecte triat per a la idea nova (si en té): el botó «Sincronitzar el
+  // projecte» obre el selector de bombolles
+  function renderCaptureSync() {
+    const current = $("#capture-sync-current");
+    const btn = $("#sync-project-btn");
+    btn.disabled = !state.groupsAvailable;
+    btn.title = state.groupsAvailable ? "" : "Actualitza la base de dades (sql/schema.sql) per fer servir projectes";
+    const g = state.captureGroup && state.groups.find((x) => x.id === state.captureGroup);
+    current.hidden = !g;
+    if (!g) return;
+    current.innerHTML = `<span class="card-group linked" style="--group-color:${catColorVar(groupSlot(g))}"><span class="card-group-dot"></span>${escapeHtml(g.title)}</span><button type="button" class="capture-sync-clear" aria-label="Treu el projecte">✕</button>`;
+    $(".capture-sync-clear", current).addEventListener("click", () => {
+      state.captureGroup = null;
+      state.captureFromGroup = null;
+      state.captureReturn = null;
+      renderCaptureSync();
     });
   }
 
@@ -398,7 +414,11 @@
 
     wireDictation($("#mic-btn"), $("#mic-hint"), $("#idea-textarea"));
 
-    $("#save-idea-btn").addEventListener("click", saveNewIdea);
+    $("#save-idea-btn").addEventListener("click", () => saveNewIdea());
+    $("#sync-project-btn").addEventListener("click", () => {
+      if (validateNewIdea(true)) openProjectPicker((groupId) => saveNewIdea(groupId));
+    });
+    wireProjectPicker();
 
     wireQuickCapture();
   }
@@ -853,26 +873,51 @@
     }
   }
 
-  async function saveNewIdea() {
+  // Comprova la idea nova abans de desar-la. Per sincronitzar-la amb un
+  // projecte també cal saber si és una feature, una millora o una correcció.
+  function validateNewIdea(forSync) {
     const content = $("#idea-textarea").value.trim();
     if (!content) {
-      toast("Escriu alguna cosa primer");
-      return;
+      toast(forSync ? "Escriu la idea abans de sincronitzar-la" : "Escriu alguna cosa primer");
+      flashField($("#idea-textarea"));
+      $("#idea-textarea").focus();
+      return false;
     }
+    if (forSync && !state.captureKind) {
+      toast("Tria si és una feature nova, una millora o una correcció");
+      flashField($("#capture-kinds"));
+      return false;
+    }
+    return true;
+  }
+
+  function flashField(el) {
+    el.classList.remove("field-error");
+    void el.offsetWidth; // reinicia l'animació
+    el.classList.add("field-error");
+    setTimeout(() => el.classList.remove("field-error"), 1600);
+  }
+
+  async function saveNewIdea(syncGroupId) {
+    const forSync = typeof syncGroupId === "string";
+    if (!validateNewIdea(forSync)) return;
+    const content = $("#idea-textarea").value.trim();
     const btn = $("#save-idea-btn");
     btn.disabled = true;
 
     try {
+      const groupId = forSync ? syncGroupId : state.captureGroup;
       const idea = {
         title: autoTitle(content),
         content,
         location: state.captureLocation,
       };
-      if (state.captureGroup) idea.group_id = state.captureGroup;
+      if (groupId) idea.group_id = groupId;
       if (state.captureKind) idea.kind = state.captureKind;
       await saveWithKindFallback((fields) => window.PB_DB.createProject(fields), idea);
       state.projects = await window.PB_DB.listProjects();
-      toast("Idea desada");
+      const g = groupId && state.groups.find((x) => x.id === groupId);
+      toast(g ? `Idea desada i sincronitzada amb «${g.title}»` : "Idea desada");
       const backToGroup = state.captureFromGroup;
       const returnTo = state.captureReturn;
       resetCaptureForm();
@@ -1974,9 +2019,7 @@
   // Separa cercles que es trepitgen i els manté dins la pantalla. `fixed`
   // són cercles que no es mouen (p.ex. la bombolla del projecte obert);
   // `pull` és cap on tendeixen (centre i força).
-  function relaxCircles(pts, W, H, { fixed = [], gap = 12, pull = null, iterations = 300 } = {}) {
-    const top = map.top;
-    const bottom = H - MAP_BAR_SPACE;
+  function relaxCircles(pts, W, H, { fixed = [], gap = 12, pull = null, iterations = 300, top = map.top, bottom = H - MAP_BAR_SPACE } = {}) {
     const n = pts.length;
     for (let iter = 0; iter < iterations; iter++) {
       for (let i = 0; i < n; i++) {
@@ -2211,6 +2254,121 @@
       tsize: pt.size,
       seed: pt.seed,
     });
+  }
+
+  /* ---------------------------------------------------------------------
+   * Selector de projecte: finestra amb les bombolles dels projectes
+   * ------------------------------------------------------------------- */
+
+  let pickerOnPick = null;
+
+  function openProjectPicker(onPick) {
+    pickerOnPick = onPick;
+    $("#project-picker").hidden = false;
+    document.body.classList.add("picker-open");
+    renderProjectPicker();
+  }
+
+  function closeProjectPicker() {
+    $("#project-picker").hidden = true;
+    document.body.classList.remove("picker-open");
+    $("#picker-stage").innerHTML = "";
+    pickerOnPick = null;
+  }
+
+  function renderProjectPicker() {
+    const stage = $("#picker-stage");
+    stage.innerHTML = "";
+    const W = stage.clientWidth;
+    const H = stage.clientHeight;
+    const groups = state.groups;
+    const items = [...groups, { add: true }];
+
+    const counts = groups.map((g) => ideasOfGroup(g.id).length);
+    const maxCount = Math.max(1, ...counts);
+    const base = Math.max(64, Math.min(140, Math.sqrt((W * H * 0.28) / items.length)));
+    const maxSize = Math.min(W, H) * 0.4;
+    const sizes = items.map((it, i) =>
+      it.add
+        ? Math.min(base * 0.7, 90)
+        : Math.min(
+            Math.max(base * (0.75 + 0.45 * (counts[i] / maxCount)), sizeForReadable(it.title || "Projecte sense títol", true, 0.56, 11)),
+            maxSize
+          )
+    );
+    const cx = W / 2;
+    const cy = H / 2;
+    const pts = sizes.map((sz, i) => {
+      const r = items.length === 1 ? 0 : Math.sqrt((i + 0.5) / items.length) * 0.75;
+      const a = i * 2.39996 + Math.sin(i * 1.7) * 0.4;
+      return { x: cx + Math.cos(a) * r * (W / 2 - 30), y: cy + Math.sin(a) * r * (H / 2 - 30), r: sz / 2 };
+    });
+    relaxCircles(pts, W, H, { gap: 16, pull: { x: cx, y: cy, k: 0.005 }, top: 8, bottom: H - 8 });
+
+    items.forEach((it, i) => {
+      const size = sizes[i];
+      const { x, y } = pts[i];
+      const el = document.createElement("button");
+      el.type = "button";
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.transform = `translate3d(${(x - size / 2).toFixed(1)}px, ${(y - size / 2).toFixed(1)}px, 0)`;
+      const seed = nodeSeed(it.add ? "picker-add" : it.id);
+      el.style.setProperty("--dx", `${((seed.bend) * 7).toFixed(1)}px`);
+      el.style.setProperty("--dy", `${((seed.breath - 0.33) * 30).toFixed(1)}px`);
+      el.style.setProperty("--float-dur", `${(5 + seed.fx1 * 12).toFixed(2)}s`);
+      el.style.setProperty("--float-delay", `${(-seed.p1).toFixed(2)}s`);
+
+      if (it.add) {
+        el.className = "map-idea map-add picker-bubble";
+        el.innerHTML = `<span class="map-add-plus" aria-hidden="true">+</span><span class="map-add-label">Nou projecte</span>`;
+        el.addEventListener("click", async () => {
+          const name = prompt("Nom del projecte nou:");
+          if (!name || !name.trim()) return;
+          try {
+            const created = await window.PB_DB.createGroup({ title: name.trim() });
+            state.groups.unshift(created);
+            pickGroup(created.id);
+          } catch (err) {
+            console.error(err);
+            toast("No s'ha pogut crear el projecte");
+          }
+        });
+      } else {
+        el.className = "map-bubble picker-bubble";
+        el.style.setProperty("--bubble-color", catColorVar(groupSlot(it)));
+        el.innerHTML = `
+          <span class="map-bubble-title">${escapeHtml(it.title || "Projecte sense títol")}</span>
+          <span class="map-bubble-count">${ideasLabel(counts[i])}</span>
+          ${mapBadgeHtml(it)}`;
+        el.setAttribute("aria-label", `Sincronitza amb ${it.title}`);
+        fitBubbleText(el, ".map-bubble-title", 0.56);
+        el.addEventListener("click", () => pickGroup(it.id));
+      }
+      stage.appendChild(el);
+    });
+  }
+
+  function pickGroup(groupId) {
+    const onPick = pickerOnPick;
+    closeProjectPicker();
+    if (onPick) onPick(groupId);
+  }
+
+  function wireProjectPicker() {
+    $("#picker-close").addEventListener("click", closeProjectPicker);
+    $("#project-picker").addEventListener("click", (e) => {
+      if (e.target.id === "project-picker") closeProjectPicker();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !$("#project-picker").hidden) closeProjectPicker();
+    });
+    window.addEventListener(
+      "resize",
+      debounce(() => {
+        if (!$("#project-picker").hidden) renderProjectPicker();
+      }, 200)
+    );
   }
 
   function unfocusMap() {
