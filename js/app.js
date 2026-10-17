@@ -1106,18 +1106,6 @@
     });
   }
 
-  function renderInheritedCategory(p) {
-    const el = $("#detail-inherited-category");
-    const g = p.group_id && state.groups.find((x) => x.id === p.group_id);
-    if (!g) {
-      el.textContent = "Sense categoria: l'agafa del projecte quan l'enllacis a un.";
-    } else if (!window.PB_DB.groupCategories(g).length) {
-      el.textContent = `El projecte «${g.title}» encara no té categoria.`;
-    } else {
-      el.innerHTML = `${categoryTagsHtml(window.PB_DB.groupCategories(g))} <span class="inherited-from">del projecte «${escapeHtml(g.title)}»</span>`;
-    }
-  }
-
   // Si la base de dades encara no té una columna nova, desa la resta i avisa
   // que cal executar el SQL nou
   async function saveWithColumnFallback(save, fields, column, warning) {
@@ -1192,13 +1180,36 @@
     autoGrowAll($("#view-detail"));
   }
 
+  // Projecte de la idea: pastilla amb el projecte actual (✕ per treure'l)
+  // i el botó «Sincronitzar el projecte», que obre el selector de bombolles
   function renderDetailGroups(p) {
-    renderGroupChips($("#detail-groups"), p.group_id || null, (id) =>
-      linkIdea(p, id, () => {
-        renderDetailGroups(p);
-        renderInheritedCategory(p);
-      })
-    );
+    const current = $("#detail-sync-current");
+    $("#detail-sync-btn").disabled = !state.groupsAvailable;
+    const g = p.group_id && state.groups.find((x) => x.id === p.group_id);
+    current.hidden = !g;
+    if (!g) return;
+    current.innerHTML = `<button type="button" class="card-group linked" style="--group-color:${catColorVar(groupSlot(g))}" title="Obre el projecte"><span class="card-group-dot"></span>${escapeHtml(g.title)}</button><button type="button" class="capture-sync-clear" aria-label="Treu-la del projecte">✕</button>`;
+    $(".card-group", current).addEventListener("click", () => openGroup(g.id, "groups"));
+    $(".capture-sync-clear", current).addEventListener("click", () => linkIdea(p, null, () => renderDetailGroups(p)));
+  }
+
+  // Abans de sincronitzar, la idea ha de tenir text i tipus
+  function syncDetailIdea() {
+    const p = state.projects.find((x) => x.id === state.currentProjectId);
+    if (!p) return;
+    if (!$("#detail-content-input").value.trim()) {
+      toast("Escriu la idea abans de sincronitzar-la");
+      flashField($("#detail-content-input"));
+      $("#detail-content-input").focus();
+      return;
+    }
+    if (!p.kind) {
+      toast("Tria si és una feature nova, una millora o una correcció");
+      flashField($("#detail-kinds"));
+      $("#detail-kinds").scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    openProjectPicker((groupId) => linkIdea(p, groupId, () => renderDetailGroups(p)));
   }
 
   // Enllaça (o desenllaça, amb null) una idea a un projecte i ho desa de seguida
@@ -1209,7 +1220,7 @@
     try {
       await window.PB_DB.updateProject(p.id, { group_id: groupId });
       const g = state.groups.find((x) => x.id === groupId);
-      toast(groupId ? `Enllaçada a «${g ? g.title : "projecte"}»` : "Idea desenllaçada");
+      toast(groupId ? `Idea sincronitzada amb «${g ? g.title : "projecte"}»` : "Idea treta del projecte");
     } catch (err) {
       console.error(err);
       p.group_id = previous;
@@ -1243,7 +1254,6 @@
       renderDetailChips(p);
       scheduleAutosave();
     });
-    renderInheritedCategory(p);
 
     const locWrap = $("#detail-locations");
     locWrap.innerHTML = "";
@@ -1336,6 +1346,8 @@
       scheduleAutosave();
     });
     $("#external-detail-input").addEventListener("input", scheduleAutosave);
+
+    $("#detail-sync-btn").addEventListener("click", syncDetailIdea);
 
     $("#delete-project-btn").addEventListener("click", async () => {
       if (!confirm("Segur que vols eliminar aquesta idea? No es pot desfer.")) return;

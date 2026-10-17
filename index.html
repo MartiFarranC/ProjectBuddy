@@ -6,12 +6,12 @@
   <title>ProjectBuddy · les teves idees</title>
   <meta name="description" content="Gestor personal d'idees i projectes futurs" />
   <!-- Icona de la pestanya: la bombeta del logotip (SVG, i PNG per als navegadors i mòbils que no en llegeixen) -->
-  <link rel="icon" type="image/svg+xml" href="img/favicon.svg?v=0.23" />
-  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=0.23" />
-  <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=0.23" />
+  <link rel="icon" type="image/svg+xml" href="img/favicon.svg?v=0.24" />
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=0.24" />
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=0.24" />
   <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
        nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
-  <link rel="stylesheet" href="css/style.css?v=0.23" />
+  <link rel="stylesheet" href="css/style.css?v=0.24" />
 </head>
 <body>
 
@@ -205,10 +205,6 @@
                 <div class="chip-row" id="detail-kinds"></div>
               </div>
               <div class="field-group">
-                <div class="field-label">Categoria</div>
-                <p class="inherited-category" id="detail-inherited-category"></p>
-              </div>
-              <div class="field-group">
                 <div class="field-label">Ubicació</div>
                 <div class="chip-row" id="detail-locations"></div>
               </div>
@@ -216,8 +212,13 @@
 
             <div class="panel">
               <div class="panel-title">Projecte</div>
-              <p class="panel-hint" id="detail-group-hint">Enllaça aquesta idea a un projecte per veure-la a dins.</p>
-              <div class="chip-row" id="detail-groups"></div>
+              <div class="capture-sync">
+                <span class="capture-sync-current" id="detail-sync-current" hidden></span>
+                <button type="button" class="btn btn-ghost sync-btn" id="detail-sync-btn">
+                  <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><circle cx="7" cy="8" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="14" cy="13" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="14.5" cy="4.5" r="1.8" fill="currentColor"/></svg>
+                  Sincronitzar el projecte
+                </button>
+              </div>
             </div>
 
             <div class="panel">
@@ -468,12 +469,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js?v=0.23"></script>
-  <script src="js/config.js?v=0.23"></script>
-  <script src="js/supabaseClient.js?v=0.23"></script>
-  <script src="js/db.js?v=0.23"></script>
-  <script src="js/speech.js?v=0.23"></script>
-  <script src="js/charts.js?v=0.23"></script>
-  <script src="js/app.js?v=0.23"></script>
+  <script src="js/version.js?v=0.24"></script>
+  <script src="js/config.js?v=0.24"></script>
+  <script src="js/supabaseClient.js?v=0.24"></script>
+  <script src="js/db.js?v=0.24"></script>
+  <script src="js/speech.js?v=0.24"></script>
+  <script src="js/charts.js?v=0.24"></script>
+  <script src="js/app.js?v=0.24"></script>
 </body>
 </html>
