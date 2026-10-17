@@ -6,12 +6,12 @@
   <title>ProjectBuddy · les teves idees</title>
   <meta name="description" content="Gestor personal d'idees i projectes futurs" />
   <!-- Icona de la pestanya: la bombeta del logotip (SVG, i PNG per als navegadors i mòbils que no en llegeixen) -->
-  <link rel="icon" type="image/svg+xml" href="img/favicon.svg?v=0.21" />
-  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=0.21" />
-  <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=0.21" />
+  <link rel="icon" type="image/svg+xml" href="img/favicon.svg?v=0.22" />
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png?v=0.22" />
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png?v=0.22" />
   <!-- Els ?v= de css/js els actualitza sol el hook de pre-commit: cada versió
        nova és una URL nova i el mòbil no pot fer servir la còpia antiga. -->
-  <link rel="stylesheet" href="css/style.css?v=0.21" />
+  <link rel="stylesheet" href="css/style.css?v=0.22" />
 </head>
 <body>
 
@@ -368,9 +368,10 @@
           <button type="button" data-filter="idea" role="radio">Sense començar</button>
         </div>
         <div class="map-bar">
-          <button type="button" class="map-back" id="map-back-btn" hidden>← Tots els projectes</button>
+          <button type="button" class="map-back" id="map-back-btn" hidden>← Tots<span class="hide-on-mobile"> els projectes</span></button>
           <span class="map-hint" id="map-hint">Toca una bombolla per veure'n les idees</span>
-          <button type="button" class="btn btn-primary map-open" id="map-open-btn" hidden>Obre el projecte</button>
+          <button type="button" class="btn btn-ghost map-new-idea" id="map-new-idea-btn" hidden>+ Nova idea</button>
+          <button type="button" class="btn btn-primary map-open" id="map-open-btn" hidden>Obre<span class="hide-on-mobile"> el projecte</span></button>
         </div>
         <div class="map-empty" id="map-empty" hidden>
           Encara no tens cap projecte.<br />Crea'n un amb «Crear projecte nou».
@@ -447,12 +448,12 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 
   <!-- ============== App ============== -->
-  <script src="js/version.js?v=0.21"></script>
-  <script src="js/config.js?v=0.21"></script>
-  <script src="js/supabaseClient.js?v=0.21"></script>
-  <script src="js/db.js?v=0.21"></script>
-  <script src="js/speech.js?v=0.21"></script>
-  <script src="js/charts.js?v=0.21"></script>
-  <script src="js/app.js?v=0.21"></script>
+  <script src="js/version.js?v=0.22"></script>
+  <script src="js/config.js?v=0.22"></script>
+  <script src="js/supabaseClient.js?v=0.22"></script>
+  <script src="js/db.js?v=0.22"></script>
+  <script src="js/speech.js?v=0.22"></script>
+  <script src="js/charts.js?v=0.22"></script>
+  <script src="js/app.js?v=0.22"></script>
 </body>
 </html>

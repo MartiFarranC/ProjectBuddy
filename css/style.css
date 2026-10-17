@@ -2215,3 +2215,44 @@ textarea.idea-reader-text:focus {
   flex-shrink: 0;
   max-width: 60%;
 }
+
+/* Bombolla «+ Nova idea» del mapa */
+.map-idea.map-add {
+  background: transparent;
+  border: 1.5px dashed var(--text-secondary);
+  box-shadow: none;
+  color: var(--text-secondary);
+  gap: 0;
+}
+
+.map-idea.map-add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 22px rgba(215, 161, 61, 0.3);
+}
+
+.map-add-plus {
+  font-size: clamp(16px, 34cqw, 30px);
+  line-height: 1;
+  font-weight: 300;
+}
+
+.map-add-label {
+  font-size: clamp(9px, 15cqw, 12px);
+  font-weight: 600;
+}
+
+.map-links path.map-add-line {
+  stroke: rgba(255, 255, 255, 0.25);
+  stroke-dasharray: 4 5;
+}
+
+@media (max-width: 820px) {
+  .hide-on-mobile {
+    display: none;
+  }
+
+  .map-bar {
+    gap: 8px;
+  }
+}

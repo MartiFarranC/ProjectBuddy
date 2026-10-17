@@ -14,6 +14,7 @@
     captureLocation: null,
     captureGroup: null,
     captureFromGroup: null,
+    captureReturn: null, // "map" o "group": on tornar després de desar
     detailReturn: "dashboard",
     currentGroupId: null,
     groupAutosaveTimer: null,
@@ -386,6 +387,7 @@
     state.captureLocation = null;
     state.captureGroup = null;
     state.captureFromGroup = null;
+    state.captureReturn = null;
     $("#mic-hint").textContent = "Prem el micro i parla en català";
     $("#mic-hint").classList.remove("live");
     renderCaptureChips();
@@ -872,8 +874,14 @@
       state.projects = await window.PB_DB.listProjects();
       toast("Idea desada");
       const backToGroup = state.captureFromGroup;
+      const returnTo = state.captureReturn;
       resetCaptureForm();
-      if (backToGroup) openGroup(backToGroup);
+      if (backToGroup && returnTo === "map") {
+        state.mapFocusId = backToGroup;
+        showView("map");
+      } else if (backToGroup) {
+        openGroup(backToGroup);
+      }
     } catch (err) {
       console.error(err);
       toast("No s'ha pogut desar la idea");
@@ -1595,6 +1603,20 @@
     }
   }
 
+  // Obre el formulari d'idea nova ja lligada a un projecte; en desar, torna
+  // allà d'on venies (la fitxa del projecte o el mapa)
+  function startIdeaForGroup(groupId, returnTo) {
+    resetCaptureForm();
+    showView("capture");
+    state.manualFormOpen = true; // el formulari, no la gravació ràpida
+    updateCaptureLayout();
+    state.captureGroup = groupId;
+    state.captureFromGroup = groupId;
+    state.captureReturn = returnTo;
+    renderCaptureChips();
+    if (!isMobile()) $("#idea-textarea").focus();
+  }
+
   function wireGroups() {
     wireDictation($("#group-mic-btn"), $("#group-mic-hint"), $("#group-textarea"));
     $("#save-group-btn").addEventListener("click", saveNewGroup);
@@ -1614,16 +1636,7 @@
       linkIdea(p, g.id, () => renderGroupIdeas(g));
     });
 
-    $("#group-new-idea-btn").addEventListener("click", () => {
-      const groupId = state.currentGroupId;
-      resetCaptureForm();
-      showView("capture");
-      state.manualFormOpen = true; // el formulari, no la gravació ràpida
-      updateCaptureLayout();
-      state.captureGroup = groupId;
-      state.captureFromGroup = groupId;
-      renderCaptureChips();
-    });
+    $("#group-new-idea-btn").addEventListener("click", () => startIdeaForGroup(state.currentGroupId, "group"));
 
     $("#delete-group-btn").addEventListener("click", async () => {
       const id = state.currentGroupId;
@@ -1658,6 +1671,9 @@
       })
     );
     $("#map-back-btn").addEventListener("click", unfocusMap);
+    $("#map-new-idea-btn").addEventListener("click", () => {
+      if (state.mapFocusId) startIdeaForGroup(state.mapFocusId, "map");
+    });
     $("#map-open-btn").addEventListener("click", () => {
       if (state.mapFocusId) openGroup(state.mapFocusId, "map");
     });
@@ -2023,6 +2039,7 @@
   function resetMapBar() {
     $("#map-back-btn").hidden = true;
     $("#map-open-btn").hidden = true;
+    $("#map-new-idea-btn").hidden = true;
     $("#map-hint").hidden = false;
     $("#map-hint").textContent = "Toca una bombolla per veure'n les idees";
   }
@@ -2089,11 +2106,14 @@
     if (!hub) return;
 
     // Idees: bombolles petites escampades al voltant de manera irregular
-    const items = ideas.length ? ideas : [null];
+    const ADD = { add: true };
+    const items = [...(ideas.length ? ideas : [null]), ADD];
     const hubR = hub.tsize / 2;
     const pts = items.map((p, i) => {
-      const seed = nodeSeed((p ? p.id : "buit") + groupId);
-      const size = p
+      const seed = nodeSeed((p ? (p.add ? "nova" : p.id) : "buit") + groupId);
+      const size = p && p.add
+        ? 62 * scale
+        : p
         ? Math.min(Math.max(64 * scale, sizeForReadable(ideaName(p), false, 0.7, 10)), 160 * scale)
         : 96 * scale;
       const a = -Math.PI / 2 + (i * 2 * Math.PI) / items.length + seed.bend * 0.35;
@@ -2107,6 +2127,10 @@
     });
 
     pts.forEach((pt, i) => {
+      if (pt.p && pt.p.add) {
+        addNewIdeaBubble(pt, i, groupId, hub, svg, stage);
+        return;
+      }
       const p = pt.p;
       const el = document.createElement("button");
       el.type = "button";
@@ -2151,7 +2175,42 @@
 
     $("#map-back-btn").hidden = false;
     $("#map-open-btn").hidden = false;
+    $("#map-new-idea-btn").hidden = false;
     $("#map-hint").hidden = true;
+  }
+
+  // Bombolla «+ Nova idea»: crea una idea ja lligada al projecte obert
+  function addNewIdeaBubble(pt, i, groupId, hub, svg, stage) {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "map-idea map-add";
+    el.style.setProperty("--delay", `${(i * 0.04).toFixed(2)}s`);
+    el.innerHTML = `<span class="map-add-plus" aria-hidden="true">+</span><span class="map-add-label">Nova idea</span>`;
+    el.setAttribute("aria-label", "Nova idea per a aquest projecte");
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      startIdeaForGroup(groupId, "map");
+    });
+    stage.appendChild(el);
+
+    const line = document.createElementNS(SVG_NS, "path");
+    line.classList.add("map-add-line");
+    svg.appendChild(line);
+
+    map.nodes.push({
+      kind: "idea",
+      id: "nova",
+      groupId,
+      el,
+      line,
+      x: hub.x,
+      y: hub.y,
+      size: 0,
+      tx: pt.x,
+      ty: pt.y,
+      tsize: pt.size,
+      seed: pt.seed,
+    });
   }
 
   function unfocusMap() {
