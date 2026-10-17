@@ -157,5 +157,11 @@ create policy "project_groups: own rows" on public.project_groups
 -- Estat del projecte (com el de les idees): idea, en_curs, feta, abandonada
 alter table public.project_groups add column if not exists status text not null default 'idea';
 
+-- Tipus d'idea: millora, correcció o feature nova. Les idees ja no tenen
+-- categoria pròpia: fan servir la del projecte on estan enllaçades (la
+-- columna "category" d'abans es conserva però l'app ja no la fa servir).
+alter table public.projects add column if not exists kind text
+  check (kind in ('millora', 'correccio', 'feature'));
+
 -- Fa que l'API vegi de seguida la taula i la columna noves
 notify pgrst, 'reload schema';

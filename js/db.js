@@ -23,6 +23,13 @@ window.PB_DB = (function () {
     { value: "abandonada", label: "Abandonada", groupLabel: "Abandonat", color: "serious" },
   ];
 
+  // Tipus d'idea (slot = color de la paleta)
+  const IDEA_KINDS = [
+    { value: "feature", label: "Feature nova", slot: 1 },
+    { value: "millora", label: "Millora", slot: 3 },
+    { value: "correccio", label: "Correcció", slot: 8 },
+  ];
+
   async function listProjects() {
     const { data, error } = await window.sb
       .from("projects")
@@ -151,6 +158,7 @@ window.PB_DB = (function () {
     DEFAULT_CATEGORIES,
     DEFAULT_LOCATIONS,
     STATUSES,
+    IDEA_KINDS,
     listProjects,
     createProject,
     updateProject,

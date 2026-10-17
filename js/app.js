@@ -10,7 +10,7 @@
     locations: [],
     currentView: null,
     currentProjectId: null,
-    captureCategory: null,
+    captureKind: null,
     captureLocation: null,
     captureGroup: null,
     captureFromGroup: null,
@@ -305,33 +305,10 @@
    * ------------------------------------------------------------------- */
 
   function renderCaptureChips() {
-    const catWrap = $("#capture-categories");
-    catWrap.innerHTML = "";
-    state.categories.forEach((c) => {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "chip";
-      chip.textContent = c.name;
-      chip.addEventListener("click", () => {
-        state.captureCategory = state.captureCategory === c.name ? null : c.name;
-        renderCaptureChips();
-      });
-      if (state.captureCategory === c.name) chip.classList.add("selected");
-      catWrap.appendChild(chip);
-    });
-    const newCat = document.createElement("button");
-    newCat.type = "button";
-    newCat.className = "chip";
-    newCat.textContent = "+ Nova";
-    newCat.addEventListener("click", async () => {
-      const name = prompt("Nom de la categoria nova:");
-      if (!name) return;
-      await window.PB_DB.addCategory(name.trim());
-      state.categories = await window.PB_DB.listCategories();
-      state.captureCategory = name.trim();
+    renderKindChips($("#capture-kinds"), state.captureKind, (kind) => {
+      state.captureKind = kind;
       renderCaptureChips();
     });
-    catWrap.appendChild(newCat);
 
     const locWrap = $("#capture-locations");
     locWrap.innerHTML = "";
@@ -405,7 +382,7 @@
 
   function resetCaptureForm() {
     $("#idea-textarea").value = "";
-    state.captureCategory = null;
+    state.captureKind = null;
     state.captureLocation = null;
     state.captureGroup = null;
     state.captureFromGroup = null;
@@ -887,11 +864,11 @@
       const idea = {
         title: autoTitle(content),
         content,
-        category: state.captureCategory,
         location: state.captureLocation,
       };
       if (state.captureGroup) idea.group_id = state.captureGroup;
-      await window.PB_DB.createProject(idea);
+      if (state.captureKind) idea.kind = state.captureKind;
+      await saveWithKindFallback((fields) => window.PB_DB.createProject(fields), idea);
       state.projects = await window.PB_DB.listProjects();
       toast("Idea desada");
       const backToGroup = state.captureFromGroup;
@@ -910,12 +887,25 @@
    * ------------------------------------------------------------------- */
 
   let activeCategoryFilter = null;
+  let activeKindFilter = null;
 
   function renderCategoryFilterChips() {
     const wrap = $("#category-filter-chips");
     wrap.innerHTML = "";
-    const used = [...new Set(state.projects.map((p) => p.category).filter(Boolean))];
-    if (!used.length) return;
+    // Tipus d'idea primer, després les categories (heretades del projecte)
+    window.PB_DB.IDEA_KINDS.filter((k) => state.projects.some((p) => p.kind === k.value)).forEach((k) => {
+      const chip = document.createElement("button");
+      chip.className = "chip chip-kind";
+      chip.style.setProperty("--kind-color", catColorVar(k.slot));
+      chip.textContent = k.label;
+      chip.addEventListener("click", () => {
+        activeKindFilter = activeKindFilter === k.value ? null : k.value;
+        renderDashboard();
+      });
+      if (activeKindFilter === k.value) chip.classList.add("selected");
+      wrap.appendChild(chip);
+    });
+    const used = [...new Set(state.projects.map(ideaCategory).filter(Boolean))];
     used.forEach((name) => {
       const chip = document.createElement("button");
       chip.className = "chip";
@@ -938,7 +928,8 @@
 
     let list = state.projects.slice();
 
-    if (activeCategoryFilter) list = list.filter((p) => p.category === activeCategoryFilter);
+    if (activeCategoryFilter) list = list.filter((p) => ideaCategory(p) === activeCategoryFilter);
+    if (activeKindFilter) list = list.filter((p) => p.kind === activeKindFilter);
     if (search) {
       list = list.filter(
         (p) =>
@@ -962,7 +953,8 @@
     list.forEach((p) => {
       const card = document.createElement("div");
       card.className = "project-card";
-      const slot = window.PB_DB.categorySlot(state.categories, p.category);
+      const category = ideaCategory(p);
+      const slot = window.PB_DB.categorySlot(state.categories, category);
       card.style.setProperty("--card-color", catColorVar(slot));
 
       const scores = p.questionnaire_done
@@ -971,7 +963,7 @@
 
       card.innerHTML = `
         <div class="card-top">
-          ${p.category ? `<span class="tag"><span class="tag-dot"></span>${p.category}</span>` : "<span></span>"}
+          <span class="card-tags">${kindTagHtml(p)}${category ? `<span class="tag"><span class="tag-dot"></span>${escapeHtml(category)}</span>` : ""}</span>
           ${statusBadgeHtml(p)}
         </div>
         <h3 class="card-title">${escapeHtml(ideaName(p))}</h3>
@@ -1002,6 +994,63 @@
     return `<button type="button" class="card-group linked" style="--group-color:${catColorVar(groupSlot(g))}" title="Obre el projecte">
         <span class="card-group-dot"></span>${escapeHtml(g.title || "Projecte sense títol")}
       </button>`;
+  }
+
+  /* ---- Tipus d'idea i categoria heretada del projecte ---- */
+
+  // Les idees no tenen categoria pròpia: és la del projecte on estan enllaçades
+  function ideaCategory(p) {
+    const g = p.group_id && state.groups.find((x) => x.id === p.group_id);
+    return (g && g.category) || null;
+  }
+
+  function kindOf(p) {
+    return window.PB_DB.IDEA_KINDS.find((k) => k.value === p.kind) || null;
+  }
+
+  function kindTagHtml(p) {
+    const k = kindOf(p);
+    return k ? `<span class="kind-tag" style="--kind-color:${catColorVar(k.slot)}">${k.label}</span>` : "";
+  }
+
+  function renderKindChips(wrap, selected, onSelect) {
+    wrap.innerHTML = "";
+    window.PB_DB.IDEA_KINDS.forEach((k) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip chip-kind";
+      chip.style.setProperty("--kind-color", catColorVar(k.slot));
+      chip.textContent = k.label;
+      if (selected === k.value) chip.classList.add("selected");
+      chip.addEventListener("click", () => onSelect(selected === k.value ? null : k.value));
+      wrap.appendChild(chip);
+    });
+  }
+
+  function renderInheritedCategory(p) {
+    const el = $("#detail-inherited-category");
+    const g = p.group_id && state.groups.find((x) => x.id === p.group_id);
+    if (!g) {
+      el.textContent = "Sense categoria: l'agafa del projecte quan l'enllacis a un.";
+    } else if (!g.category) {
+      el.textContent = `El projecte «${g.title}» encara no té categoria.`;
+    } else {
+      el.innerHTML = `<span class="tag" style="--card-color:${catColorVar(window.PB_DB.categorySlot(state.categories, g.category))}"><span class="tag-dot"></span>${escapeHtml(g.category)}</span> <span class="inherited-from">del projecte «${escapeHtml(g.title)}»</span>`;
+    }
+  }
+
+  // Si la base de dades encara no té la columna "kind", desa la resta i
+  // avisa que cal executar el SQL nou
+  async function saveWithKindFallback(save, fields) {
+    try {
+      return await save(fields);
+    } catch (err) {
+      const msg = `${err.message || ""} ${err.details || ""}`;
+      if (!("kind" in fields) || !/kind/.test(msg)) throw err;
+      const { kind, ...rest } = fields;
+      if (kind) toast("Per desar el tipus d'idea, executa un altre cop sql/schema.sql a Supabase");
+      return await save(rest);
+    }
   }
 
   function escapeHtml(str) {
@@ -1044,7 +1093,12 @@
   }
 
   function renderDetailGroups(p) {
-    renderGroupChips($("#detail-groups"), p.group_id || null, (id) => linkIdea(p, id, () => renderDetailGroups(p)));
+    renderGroupChips($("#detail-groups"), p.group_id || null, (id) =>
+      linkIdea(p, id, () => {
+        renderDetailGroups(p);
+        renderInheritedCategory(p);
+      })
+    );
   }
 
   // Enllaça (o desenllaça, amb null) una idea a un projecte i ho desa de seguida
@@ -1084,33 +1138,12 @@
   }
 
   function renderDetailChips(p) {
-    const catWrap = $("#detail-categories");
-    catWrap.innerHTML = "";
-    state.categories.forEach((c) => {
-      const chip = document.createElement("button");
-      chip.className = "chip";
-      chip.textContent = c.name;
-      if (p.category === c.name) chip.classList.add("selected");
-      chip.addEventListener("click", () => {
-        p.category = p.category === c.name ? null : c.name;
-        renderDetailChips(p);
-        scheduleAutosave();
-      });
-      catWrap.appendChild(chip);
-    });
-    const newCat = document.createElement("button");
-    newCat.className = "chip";
-    newCat.textContent = "+ Nova";
-    newCat.addEventListener("click", async () => {
-      const name = prompt("Nom de la categoria nova:");
-      if (!name) return;
-      await window.PB_DB.addCategory(name.trim());
-      state.categories = await window.PB_DB.listCategories();
-      p.category = name.trim();
+    renderKindChips($("#detail-kinds"), p.kind || null, (kind) => {
+      p.kind = kind;
       renderDetailChips(p);
       scheduleAutosave();
     });
-    catWrap.appendChild(newCat);
+    renderInheritedCategory(p);
 
     const locWrap = $("#detail-locations");
     locWrap.innerHTML = "";
@@ -1163,7 +1196,6 @@
     const patch = {
       title: $("#detail-title-input").value.replace(/\s+/g, " ").trim() || "Idea sense títol",
       content: $("#detail-content-input").value,
-      category: p.category || null,
       location: p.location || null,
       status: p.status || "idea",
       difficulty,
@@ -1173,9 +1205,10 @@
       external_detail: $("#external-detail-input").value,
       questionnaire_done: true,
     };
+    if (p.kind !== undefined) patch.kind = p.kind || null;
 
     try {
-      const updated = await window.PB_DB.updateProject(p.id, patch);
+      const updated = await saveWithKindFallback((fields) => window.PB_DB.updateProject(p.id, fields), patch);
       Object.assign(p, updated);
       const ind = $("#autosave-indicator");
       ind.classList.add("show");
@@ -1456,11 +1489,11 @@
     ideas.forEach((p) => {
       const row = document.createElement("div");
       row.className = "group-idea";
-      row.style.setProperty("--card-color", catColorVar(window.PB_DB.categorySlot(state.categories, p.category)));
+      row.style.setProperty("--card-color", catColorVar(window.PB_DB.categorySlot(state.categories, ideaCategory(p))));
       row.innerHTML = `
         <div class="group-idea-main">
           <div class="group-idea-title">${escapeHtml(ideaName(p))}</div>
-          <div class="group-idea-meta">${statusBadgeHtml(p)} <span>${formatRelative(p.created_at)}</span></div>
+          <div class="group-idea-meta">${kindTagHtml(p)}${statusBadgeHtml(p)} <span>${formatRelative(p.created_at)}</span></div>
         </div>
         <button type="button" class="group-idea-unlink" title="Desenllaça del projecte" aria-label="Desenllaça del projecte">✕</button>
       `;
@@ -2096,7 +2129,9 @@
     }
     empty.hidden = true;
     $(".stats-grid").hidden = false;
-    window.PB_CHARTS.renderAll(state.projects, state.categories);
+    // Les gràfiques per categoria fan servir la del projecte de cada idea
+    const ideas = state.projects.map((p) => ({ ...p, category: ideaCategory(p) }));
+    window.PB_CHARTS.renderAll(ideas, state.categories);
   }
 
   async function loadData() {
